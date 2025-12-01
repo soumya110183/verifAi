@@ -10,6 +10,7 @@ import VerificationDetail from "@/pages/VerificationDetail";
 import Integrations from "@/pages/Integrations";
 import Patterns from "@/pages/Patterns";
 import Settings from "@/pages/Settings";
+import AuditTrail from "@/pages/AuditTrail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/integrations" component={Integrations} />
       <Route path="/patterns" component={Patterns} />
       <Route path="/settings" component={Settings} />
+      <Route path="/audit" component={AuditTrail} />
       <Route component={NotFound} />
     </Switch>
   );

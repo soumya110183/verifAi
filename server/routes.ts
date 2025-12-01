@@ -92,6 +92,38 @@ export async function registerRoutes(
   app.get("/api/settings", (req, res) => proxyToPython(req, res));
   
   app.put("/api/settings", (req, res) => proxyToPython(req, res));
+  
+  app.get("/api/audit-logs", async (req, res) => {
+    try {
+      const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+      const url = `${PYTHON_BACKEND_URL}/api/audit-logs${queryString ? '?' + queryString : ''}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.error("Audit logs error:", error);
+      res.status(502).json({ error: "Backend service unavailable" });
+    }
+  });
+  
+  app.get("/api/audit-logs/stats", (req, res) => proxyToPython(req, res));
+  
+  app.get("/api/audit-logs/export", async (req, res) => {
+    try {
+      const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+      const url = `${PYTHON_BACKEND_URL}/api/audit-logs/export${queryString ? '?' + queryString : ''}`;
+      const response = await fetch(url);
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', response.headers.get('Content-Disposition') || 'attachment; filename="audit_logs.csv"');
+      
+      const buffer = await response.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      console.error("Audit export error:", error);
+      res.status(502).json({ error: "Backend service unavailable" });
+    }
+  });
 
   return httpServer;
 }

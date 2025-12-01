@@ -69,6 +69,20 @@ def init_db():
         )
     """)
     
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id TEXT PRIMARY KEY,
+            action TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT,
+            user_id TEXT DEFAULT 'system',
+            user_name TEXT DEFAULT 'System',
+            details JSONB,
+            ip_address TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     cur.execute("SELECT COUNT(*) as count FROM settings")
     if cur.fetchone()["count"] == 0:
         cur.execute("""
@@ -324,6 +338,121 @@ def save_chat_message(ver_id, message):
         conn.close()
     except Exception as e:
         print(f"Save chat message error: {e}")
+
+def log_audit_event(action, entity_type, entity_id=None, user_id="system", user_name="System", details=None, ip_address=None):
+    """Log an audit event to the database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO audit_logs (id, action, entity_type, entity_id, user_id, user_name, details, ip_address, timestamp)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            str(uuid.uuid4()),
+            action,
+            entity_type,
+            entity_id,
+            user_id,
+            user_name,
+            json.dumps(details) if details else None,
+            ip_address,
+            datetime.now()
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Audit log error: {e}")
+
+def get_audit_logs(filters=None, limit=100, offset=0):
+    """Get audit logs with optional filtering"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = "SELECT * FROM audit_logs WHERE 1=1"
+        params = []
+        
+        if filters:
+            if filters.get("action"):
+                query += " AND action = %s"
+                params.append(filters["action"])
+            if filters.get("entity_type"):
+                query += " AND entity_type = %s"
+                params.append(filters["entity_type"])
+            if filters.get("entity_id"):
+                query += " AND entity_id = %s"
+                params.append(filters["entity_id"])
+            if filters.get("user_id"):
+                query += " AND user_id = %s"
+                params.append(filters["user_id"])
+            if filters.get("start_date"):
+                query += " AND timestamp >= %s"
+                params.append(filters["start_date"])
+            if filters.get("end_date"):
+                query += " AND timestamp <= %s"
+                params.append(filters["end_date"])
+        
+        query += " ORDER BY timestamp DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        return [{
+            "id": row["id"],
+            "action": row["action"],
+            "entityType": row["entity_type"],
+            "entityId": row["entity_id"],
+            "userId": row["user_id"],
+            "userName": row["user_name"],
+            "details": row["details"],
+            "ipAddress": row["ip_address"],
+            "timestamp": row["timestamp"].isoformat() if row["timestamp"] else None
+        } for row in rows]
+    except Exception as e:
+        print(f"Get audit logs error: {e}")
+        return []
+
+def get_audit_log_count(filters=None):
+    """Get total count of audit logs with optional filtering"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = "SELECT COUNT(*) as count FROM audit_logs WHERE 1=1"
+        params = []
+        
+        if filters:
+            if filters.get("action"):
+                query += " AND action = %s"
+                params.append(filters["action"])
+            if filters.get("entity_type"):
+                query += " AND entity_type = %s"
+                params.append(filters["entity_type"])
+            if filters.get("entity_id"):
+                query += " AND entity_id = %s"
+                params.append(filters["entity_id"])
+            if filters.get("user_id"):
+                query += " AND user_id = %s"
+                params.append(filters["user_id"])
+            if filters.get("start_date"):
+                query += " AND timestamp >= %s"
+                params.append(filters["start_date"])
+            if filters.get("end_date"):
+                query += " AND timestamp <= %s"
+                params.append(filters["end_date"])
+        
+        cur.execute(query, params)
+        count = cur.fetchone()["count"]
+        cur.close()
+        conn.close()
+        return count
+    except Exception as e:
+        print(f"Get audit log count error: {e}")
+        return 0
 
 def generate_sample_data():
     """Generate sample verifications for demo if database is empty"""
@@ -644,6 +773,20 @@ def create_verification():
     
     save_verification(verification)
     
+    log_audit_event(
+        action="document_uploaded",
+        entity_type="verification",
+        entity_id=ver_id,
+        details={
+            "documentType": doc_type,
+            "riskScore": risk_score,
+            "riskLevel": risk_level,
+            "customerName": customer_name,
+            "status": status
+        },
+        ip_address=request.remote_addr
+    )
+    
     return jsonify(verification), 201
 
 @app.route("/api/verifications/<verification_id>", methods=["PATCH"])
@@ -653,10 +796,31 @@ def update_verification_route(verification_id):
         return jsonify({"error": "Verification not found"}), 404
     
     data = request.get_json()
+    old_status = verification.get("status")
+    
     if "status" in data:
-        verification["status"] = data["status"]
+        new_status = data["status"]
+        verification["status"] = new_status
         verification["reviewedAt"] = datetime.now().isoformat()
         save_verification(verification)
+        
+        action = "verification_approved" if new_status == "approved" else (
+            "verification_rejected" if new_status == "rejected" else "verification_status_changed"
+        )
+        
+        log_audit_event(
+            action=action,
+            entity_type="verification",
+            entity_id=verification_id,
+            details={
+                "oldStatus": old_status,
+                "newStatus": new_status,
+                "customerName": verification.get("customerName"),
+                "riskScore": verification.get("riskScore"),
+                "riskLevel": verification.get("riskLevel")
+            },
+            ip_address=request.remote_addr
+        )
     
     return jsonify(verification)
 
@@ -746,9 +910,128 @@ def get_settings_route():
 def update_settings_route():
     data = request.get_json()
     current = get_settings()
+    old_settings = current.copy()
     current.update(data)
     save_settings(current)
+    
+    log_audit_event(
+        action="settings_updated",
+        entity_type="settings",
+        details={"old": old_settings, "new": current},
+        ip_address=request.remote_addr
+    )
+    
     return jsonify(current)
+
+@app.route("/api/audit-logs", methods=["GET"])
+def get_audit_logs_route():
+    """Get audit logs with optional filtering and pagination"""
+    filters = {}
+    if request.args.get("action"):
+        filters["action"] = request.args.get("action")
+    if request.args.get("entityType"):
+        filters["entity_type"] = request.args.get("entityType")
+    if request.args.get("entityId"):
+        filters["entity_id"] = request.args.get("entityId")
+    if request.args.get("userId"):
+        filters["user_id"] = request.args.get("userId")
+    if request.args.get("startDate"):
+        filters["start_date"] = request.args.get("startDate")
+    if request.args.get("endDate"):
+        filters["end_date"] = request.args.get("endDate")
+    
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+    
+    logs = get_audit_logs(filters if filters else None, limit, offset)
+    total = get_audit_log_count(filters if filters else None)
+    
+    return jsonify({
+        "logs": logs,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    })
+
+@app.route("/api/audit-logs/export", methods=["GET"])
+def export_audit_logs_route():
+    """Export audit logs as CSV"""
+    import csv
+    from io import StringIO
+    
+    filters = {}
+    if request.args.get("action"):
+        filters["action"] = request.args.get("action")
+    if request.args.get("entityType"):
+        filters["entity_type"] = request.args.get("entityType")
+    if request.args.get("startDate"):
+        filters["start_date"] = request.args.get("startDate")
+    if request.args.get("endDate"):
+        filters["end_date"] = request.args.get("endDate")
+    
+    logs = get_audit_logs(filters if filters else None, limit=10000, offset=0)
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Timestamp", "Action", "Entity Type", "Entity ID", "User", "Details", "IP Address"])
+    
+    for log in logs:
+        writer.writerow([
+            log["timestamp"],
+            log["action"],
+            log["entityType"],
+            log["entityId"] or "",
+            log["userName"],
+            json.dumps(log["details"]) if log["details"] else "",
+            log["ipAddress"] or ""
+        ])
+    
+    output.seek(0)
+    return send_file(
+        BytesIO(output.getvalue().encode('utf-8')),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"audit_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    )
+
+@app.route("/api/audit-logs/stats", methods=["GET"])
+def get_audit_stats_route():
+    """Get audit log statistics"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT action, COUNT(*) as count 
+            FROM audit_logs 
+            GROUP BY action 
+            ORDER BY count DESC
+        """)
+        actions = [{"action": row["action"], "count": row["count"]} for row in cur.fetchall()]
+        
+        cur.execute("""
+            SELECT DATE(timestamp) as date, COUNT(*) as count 
+            FROM audit_logs 
+            WHERE timestamp >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(timestamp) 
+            ORDER BY date
+        """)
+        daily = [{"date": row["date"].isoformat() if row["date"] else None, "count": row["count"]} for row in cur.fetchall()]
+        
+        cur.execute("SELECT COUNT(*) as total FROM audit_logs")
+        total = cur.fetchone()["total"]
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            "totalLogs": total,
+            "actionBreakdown": actions,
+            "dailyActivity": daily
+        })
+    except Exception as e:
+        print(f"Audit stats error: {e}")
+        return jsonify({"totalLogs": 0, "actionBreakdown": [], "dailyActivity": []})
 
 if __name__ == "__main__":
     port = int(os.environ.get("FLASK_PORT", 5001))
