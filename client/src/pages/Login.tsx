@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Lock, User } from "lucide-react";
-import verifaiHero from "@assets/VerifAI_1764611010031.png";
+import verifaiHero from "@assets/VerifAI (1)_1764611697534.png";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -43,22 +43,22 @@ export default function Login() {
           />
         </div>
 
-        <div className="w-full lg:w-1/2 bg-white p-8 flex items-center justify-center">
+        <div className="w-full lg:w-1/2 bg-white p-6 flex items-center justify-center">
           <div className="w-full max-w-sm">
-            <div className="text-center mb-8 lg:hidden">
-              <h1 className="text-3xl font-bold text-slate-900">VerifAI</h1>
-              <p className="text-slate-600 mt-2">AI-Powered KYC Verification Platform</p>
+            <div className="text-center mb-6 lg:hidden">
+              <h1 className="text-2xl font-bold text-slate-900">VerifAI</h1>
+              <p className="text-slate-600 mt-1 text-sm">AI-Powered KYC Verification Platform</p>
             </div>
 
             <Card className="shadow-none border-0">
-              <CardHeader className="space-y-1 px-0">
-                <CardTitle className="text-2xl">Sign In</CardTitle>
-                <CardDescription>
+              <CardHeader className="space-y-1 px-0 pb-4">
+                <CardTitle className="text-xl">Sign In</CardTitle>
+                <CardDescription className="text-sm">
                   Enter your credentials to access the platform
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-0">
-                <form onSubmit={handleSubmit} className="space-y-4">
+              <CardContent className="px-0 pt-0">
+                <form onSubmit={handleSubmit} className="space-y-3">
                   {error && (
                     <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-md text-sm" data-testid="error-login">
                       <AlertCircle className="w-4 h-4" />
@@ -107,24 +107,8 @@ export default function Login() {
                     {isLoggingIn ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
-
-                <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground text-center">
-                    <span className="font-medium">Demo Credentials:</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground text-center mt-1">
-                    Username: <code className="bg-background px-1.5 py-0.5 rounded">analyst</code>
-                  </p>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Password: <code className="bg-background px-1.5 py-0.5 rounded">verifai2024</code>
-                  </p>
-                </div>
               </CardContent>
             </Card>
-
-            <p className="text-center text-sm text-slate-500 mt-6">
-              Secure document verification powered by AI
-            </p>
           </div>
         </div>
       </div>

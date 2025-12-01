@@ -14,7 +14,7 @@ const uploadMultiple = multer({
 
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:5001";
 const DEMO_USERNAME = process.env.DEMO_USERNAME || "analyst";
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "verifai2024";
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "analyst";
 
 async function proxyToPython(req: Request, res: Response, options: {
   method?: string;
