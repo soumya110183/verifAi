@@ -5,10 +5,10 @@ VerifAI is an intelligent Know Your Customer (KYC) document verification platfor
 
 ## Tech Stack
 - **Frontend**: React 18 with TypeScript, Tailwind CSS, Shadcn UI components
-- **Backend**: Python Flask API with OpenAI integration (via Replit AI Integrations)
+- **Backend**: Python Flask API with OpenAI integration
 - **Server**: Node.js Express (serves frontend and proxies API requests to Python backend)
 - **Database**: PostgreSQL for persistent storage
-- **AI**: OpenAI GPT-5 for document analysis, Vision API for OCR, GenAI assistant
+- **AI**: OpenAI GPT-4o for document analysis and Vision API for OCR
 
 ## Project Structure
 ```
@@ -40,40 +40,34 @@ VerifAI is an intelligent Know Your Customer (KYC) document verification platfor
 ```
 
 ## Key Features
-1. **Dashboard**: Real-time KPIs (total verifications, auto-approval rate, pending reviews, high-risk flags), verification volume chart, recent verifications feed
-2. **Document Upload**: Drag-and-drop interface supporting JPG, PNG, PDF (max 10MB)
-3. **Verification Detail**: Document viewer with OCR bounding boxes, risk scoring, data validation, approve/reject workflow
-4. **GenAI Assistant**: AI-powered chat for document analysis and recommendations
+1. **Dashboard**: Real-time KPIs, verification volume chart, recent verifications feed
+2. **Document Upload**: Drag-and-drop interface supporting JPG, PNG, PDF
+3. **Verification Detail**: Document viewer with OCR data, risk scoring, approve/reject workflow
+4. **GenAI Assistant**: AI-powered chat for document analysis
 5. **Integrations**: Mock connections to DMV, Passport Authority, SSA
-6. **Patterns Library**: Fraud detection techniques and known patterns
-7. **Settings**: Risk thresholds, automation rules, notification preferences
+6. **Patterns Library**: Fraud detection techniques
+7. **Settings**: Risk thresholds, automation rules
+8. **Audit Trail**: Complete activity logging with export
 
 ## Running the Application
 The application requires two servers:
 1. **Python Backend** (port 5001): `python python_backend/app.py`
 2. **Node.js Server** (port 5000): `npm run dev`
 
+## Environment Variables
+- `OPENAI_API_KEY`: Your OpenAI API key for AI features
+- `DATABASE_URL`: PostgreSQL connection string
+
 ## API Endpoints
 - `GET /api/dashboard` - Dashboard statistics
 - `GET /api/verifications` - List all verifications
-- `POST /api/verifications` - Create new verification (multipart form)
+- `POST /api/verifications` - Create new verification
 - `GET /api/verifications/:id` - Get verification details
 - `PATCH /api/verifications/:id` - Update verification status
-- `GET /api/verifications/:id/chat` - Get chat history
 - `POST /api/verifications/:id/chat` - Send chat message
-- `GET /api/integrations` - List integrations
-- `GET /api/patterns` - List fraud patterns
-- `GET /api/settings` - Get settings
-- `PUT /api/settings` - Update settings
+- `GET /api/batch-jobs` - List batch jobs
+- `POST /api/batch-jobs` - Create batch job with multiple documents
 
-## AI Integration
-Uses Replit AI Integrations for OpenAI access:
-- No API key required
-- Charges billed to Replit credits
-- Model: GPT-5 for document analysis and chat
-
-## Design System
-- Typography: Inter (UI), JetBrains Mono (technical data)
-- Colors: Professional blue primary with neutral grays
-- Layout: Max-width 7xl containers, responsive grid layouts
-- Components: Shadcn UI with custom elevation system
+## Login Credentials
+- Username: analyst
+- Password: analyst

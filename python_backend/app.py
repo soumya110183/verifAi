@@ -15,8 +15,7 @@ app = Flask(__name__)
 CORS(app, origins="*")
 
 client = OpenAI(
-    base_url=os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
-    api_key=os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+    api_key=os.environ.get("OPENAI_API_KEY")
 )
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -754,7 +753,7 @@ Return a JSON object with the following structure:
 Only include fields that are actually visible in the document. Estimate confidence based on text clarity."""
 
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -770,7 +769,7 @@ Only include fields that are actually visible in the document. Estimate confiden
                     ]
                 }
             ],
-            max_completion_tokens=1000
+            max_tokens=1000
         )
         
         response_text = response.choices[0].message.content
@@ -1084,12 +1083,12 @@ Please provide helpful, concise responses about this document. If asked about ap
 
     try:
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": context},
                 *[{"role": m["role"], "content": m["content"]} for m in chat_history[-10:]]
             ],
-            max_completion_tokens=500
+            max_tokens=500
         )
         
         assistant_content = response.choices[0].message.content
