@@ -8,28 +8,137 @@ from flask_cors import CORS
 from openai import OpenAI
 from io import BytesIO
 import random
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 CORS(app, origins="*")
 
-# This is using Replit's AI Integrations service, which provides OpenAI-compatible API access
-# without requiring your own OpenAI API key. Charges are billed to your credits.
-# the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 client = OpenAI(
     base_url=os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
     api_key=os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
 )
 
-# In-memory storage
-verifications = {}
-chat_histories = {}
-settings = {
-    "autoApproveThreshold": 30,
-    "highRiskThreshold": 70,
-    "emailNotifications": True,
-    "inAppNotifications": True,
-    "autoRejectHighRisk": False
-}
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+def get_db_connection():
+    """Get a database connection"""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    return conn
+
+def init_db():
+    """Initialize database tables"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS verifications (
+            id TEXT PRIMARY KEY,
+            document_type TEXT,
+            document_url TEXT,
+            status TEXT,
+            risk_score INTEGER,
+            risk_level TEXT,
+            customer_name TEXT,
+            submitted_at TIMESTAMP,
+            reviewed_at TIMESTAMP,
+            ocr_fields JSONB,
+            risk_insights JSONB,
+            validation_results JSONB
+        )
+    """)
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id TEXT PRIMARY KEY,
+            verification_id TEXT REFERENCES verifications(id),
+            role TEXT,
+            content TEXT,
+            timestamp TIMESTAMP
+        )
+    """)
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            auto_approve_threshold INTEGER DEFAULT 30,
+            high_risk_threshold INTEGER DEFAULT 70,
+            email_notifications BOOLEAN DEFAULT TRUE,
+            in_app_notifications BOOLEAN DEFAULT TRUE,
+            auto_reject_high_risk BOOLEAN DEFAULT FALSE
+        )
+    """)
+    
+    cur.execute("SELECT COUNT(*) as count FROM settings")
+    if cur.fetchone()["count"] == 0:
+        cur.execute("""
+            INSERT INTO settings (id, auto_approve_threshold, high_risk_threshold, 
+                                  email_notifications, in_app_notifications, auto_reject_high_risk)
+            VALUES (1, 30, 70, TRUE, TRUE, FALSE)
+        """)
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+try:
+    init_db()
+    print("[python] Database initialized successfully")
+except Exception as e:
+    print(f"[python] Database initialization warning: {e}")
+
+def get_settings():
+    """Get settings from database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM settings WHERE id = 1")
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if row:
+            return {
+                "autoApproveThreshold": row["auto_approve_threshold"],
+                "highRiskThreshold": row["high_risk_threshold"],
+                "emailNotifications": row["email_notifications"],
+                "inAppNotifications": row["in_app_notifications"],
+                "autoRejectHighRisk": row["auto_reject_high_risk"]
+            }
+    except:
+        pass
+    return {
+        "autoApproveThreshold": 30,
+        "highRiskThreshold": 70,
+        "emailNotifications": True,
+        "inAppNotifications": True,
+        "autoRejectHighRisk": False
+    }
+
+def save_settings(settings_data):
+    """Save settings to database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE settings SET 
+                auto_approve_threshold = %s,
+                high_risk_threshold = %s,
+                email_notifications = %s,
+                in_app_notifications = %s,
+                auto_reject_high_risk = %s
+            WHERE id = 1
+        """, (
+            settings_data.get("autoApproveThreshold", 30),
+            settings_data.get("highRiskThreshold", 70),
+            settings_data.get("emailNotifications", True),
+            settings_data.get("inAppNotifications", True),
+            settings_data.get("autoRejectHighRisk", False)
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Settings save error: {e}")
 
 integrations = [
     {
@@ -101,48 +210,170 @@ fraud_patterns = [
     }
 ]
 
+def db_row_to_verification(row):
+    """Convert database row to verification dict"""
+    return {
+        "id": row["id"],
+        "documentType": row["document_type"],
+        "documentUrl": row["document_url"] or "",
+        "status": row["status"],
+        "riskScore": row["risk_score"],
+        "riskLevel": row["risk_level"],
+        "customerName": row["customer_name"],
+        "submittedAt": row["submitted_at"].isoformat() if row["submitted_at"] else None,
+        "reviewedAt": row["reviewed_at"].isoformat() if row["reviewed_at"] else None,
+        "ocrFields": row["ocr_fields"] or [],
+        "riskInsights": row["risk_insights"] or [],
+        "validationResults": row["validation_results"] or [],
+        "chatHistory": []
+    }
+
+def get_all_verifications():
+    """Get all verifications from database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM verifications ORDER BY submitted_at DESC")
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [db_row_to_verification(row) for row in rows]
+    except Exception as e:
+        print(f"Get verifications error: {e}")
+        return []
+
+def get_verification_by_id(ver_id):
+    """Get a single verification by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM verifications WHERE id = %s", (ver_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if row:
+            return db_row_to_verification(row)
+    except Exception as e:
+        print(f"Get verification error: {e}")
+    return None
+
+def save_verification(verification):
+    """Save or update a verification in database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO verifications (id, document_type, document_url, status, risk_score, 
+                                       risk_level, customer_name, submitted_at, reviewed_at,
+                                       ocr_fields, risk_insights, validation_results)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+                status = EXCLUDED.status,
+                reviewed_at = EXCLUDED.reviewed_at
+        """, (
+            verification["id"],
+            verification["documentType"],
+            verification["documentUrl"],
+            verification["status"],
+            verification["riskScore"],
+            verification["riskLevel"],
+            verification["customerName"],
+            verification.get("submittedAt"),
+            verification.get("reviewedAt"),
+            json.dumps(verification.get("ocrFields", [])),
+            json.dumps(verification.get("riskInsights", [])),
+            json.dumps(verification.get("validationResults", []))
+        ))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Save verification error: {e}")
+
+def get_chat_history(ver_id):
+    """Get chat history for a verification"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, role, content, timestamp 
+            FROM chat_messages 
+            WHERE verification_id = %s 
+            ORDER BY timestamp ASC
+        """, (ver_id,))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [{"id": r["id"], "role": r["role"], "content": r["content"], 
+                 "timestamp": r["timestamp"].isoformat() if r["timestamp"] else None} for r in rows]
+    except Exception as e:
+        print(f"Get chat history error: {e}")
+        return []
+
+def save_chat_message(ver_id, message):
+    """Save a chat message to database"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO chat_messages (id, verification_id, role, content, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (message["id"], ver_id, message["role"], message["content"], message.get("timestamp")))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Save chat message error: {e}")
+
 def generate_sample_data():
-    """Generate sample verifications for demo"""
-    sample_names = ["John Smith", "Maria Garcia", "James Wilson", "Sarah Johnson", "Michael Brown"]
-    doc_types = ["passport", "drivers_license", "national_id"]
-    statuses = ["approved", "pending", "in_review", "rejected"]
-    
-    for i in range(10):
-        ver_id = str(uuid.uuid4())
-        risk_score = random.randint(5, 85)
-        risk_level = "low" if risk_score < 30 else ("medium" if risk_score < 70 else "high")
-        status = "approved" if risk_score < 30 else ("pending" if risk_score < 70 else random.choice(["in_review", "rejected"]))
+    """Generate sample verifications for demo if database is empty"""
+    try:
+        existing = get_all_verifications()
+        if len(existing) > 0:
+            return
         
-        verifications[ver_id] = {
-            "id": ver_id,
-            "documentType": random.choice(doc_types),
-            "documentUrl": "",
-            "status": status,
-            "riskScore": risk_score,
-            "riskLevel": risk_level,
-            "customerName": random.choice(sample_names),
-            "submittedAt": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat(),
-            "reviewedAt": datetime.now().isoformat() if status in ["approved", "rejected"] else None,
-            "ocrFields": [
-                {"fieldName": "Full Name", "value": random.choice(sample_names), "confidence": random.randint(85, 99)},
-                {"fieldName": "Document Number", "value": f"DOC{random.randint(100000, 999999)}", "confidence": random.randint(90, 99)},
-                {"fieldName": "Date of Birth", "value": f"{random.randint(1960, 2000)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}", "confidence": random.randint(88, 99)},
-                {"fieldName": "Expiry Date", "value": f"{random.randint(2025, 2030)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}", "confidence": random.randint(85, 99)},
-            ],
-            "riskInsights": [
-                {"category": "Document Quality", "description": "Image clarity is good", "severity": "low"},
-                {"category": "Data Consistency", "description": "All fields appear consistent", "severity": "low"},
-            ] if risk_score < 50 else [
-                {"category": "Security Features", "description": "Some security elements could not be verified", "severity": "medium"},
-                {"category": "Image Analysis", "description": "Potential editing detected in photo area", "severity": "high" if risk_score > 70 else "medium"},
-            ],
-            "validationResults": [
-                {"fieldName": "Full Name", "submittedValue": random.choice(sample_names), "extractedValue": random.choice(sample_names), "isMatch": True},
-                {"fieldName": "Date of Birth", "submittedValue": "1985-03-15", "extractedValue": "1985-03-15", "isMatch": True},
-            ],
-            "chatHistory": []
-        }
-        chat_histories[ver_id] = []
+        sample_names = ["John Smith", "Maria Garcia", "James Wilson", "Sarah Johnson", "Michael Brown"]
+        doc_types = ["passport", "drivers_license", "national_id"]
+        
+        for i in range(10):
+            ver_id = str(uuid.uuid4())
+            risk_score = random.randint(5, 85)
+            risk_level = "low" if risk_score < 30 else ("medium" if risk_score < 70 else "high")
+            status = "approved" if risk_score < 30 else ("pending" if risk_score < 70 else random.choice(["in_review", "rejected"]))
+            customer_name = random.choice(sample_names)
+            
+            verification = {
+                "id": ver_id,
+                "documentType": random.choice(doc_types),
+                "documentUrl": "",
+                "status": status,
+                "riskScore": risk_score,
+                "riskLevel": risk_level,
+                "customerName": customer_name,
+                "submittedAt": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat(),
+                "reviewedAt": datetime.now().isoformat() if status in ["approved", "rejected"] else None,
+                "ocrFields": [
+                    {"fieldName": "Full Name", "value": customer_name, "confidence": random.randint(85, 99)},
+                    {"fieldName": "Document Number", "value": f"DOC{random.randint(100000, 999999)}", "confidence": random.randint(90, 99)},
+                    {"fieldName": "Date of Birth", "value": f"{random.randint(1960, 2000)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}", "confidence": random.randint(88, 99)},
+                    {"fieldName": "Expiry Date", "value": f"{random.randint(2025, 2030)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}", "confidence": random.randint(85, 99)},
+                ],
+                "riskInsights": [
+                    {"category": "Document Quality", "description": "Image clarity is good", "severity": "low"},
+                    {"category": "Data Consistency", "description": "All fields appear consistent", "severity": "low"},
+                ] if risk_score < 50 else [
+                    {"category": "Security Features", "description": "Some security elements could not be verified", "severity": "medium"},
+                    {"category": "Image Analysis", "description": "Potential editing detected in photo area", "severity": "high" if risk_score > 70 else "medium"},
+                ],
+                "validationResults": [
+                    {"fieldName": "Full Name", "submittedValue": customer_name, "extractedValue": customer_name, "isMatch": True},
+                    {"fieldName": "Date of Birth", "submittedValue": "1985-03-15", "extractedValue": "1985-03-15", "isMatch": True},
+                ]
+            }
+            save_verification(verification)
+        print("[python] Sample data generated")
+    except Exception as e:
+        print(f"[python] Sample data generation error: {e}")
 
 generate_sample_data()
 
@@ -293,21 +524,22 @@ def health_check():
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
 @app.route("/api/dashboard", methods=["GET"])
-def get_dashboard():
-    total = len(verifications)
-    approved = sum(1 for v in verifications.values() if v["status"] == "approved")
-    pending = sum(1 for v in verifications.values() if v["status"] in ["pending", "in_review"])
-    high_risk = sum(1 for v in verifications.values() if v["riskLevel"] == "high")
+def get_dashboard_route():
+    all_verifications = get_all_verifications()
+    total = len(all_verifications)
+    approved = sum(1 for v in all_verifications if v["status"] == "approved")
+    pending = sum(1 for v in all_verifications if v["status"] in ["pending", "in_review"])
+    high_risk = sum(1 for v in all_verifications if v["riskLevel"] == "high")
     
     auto_approval_rate = round((approved / total * 100) if total > 0 else 0)
     
-    recent = sorted(verifications.values(), key=lambda x: x["submittedAt"], reverse=True)[:10]
+    recent = all_verifications[:10]
     
     volume_data = []
     for i in range(30):
         date = (datetime.now() - timedelta(days=29-i)).strftime("%b %d")
-        count = sum(1 for v in verifications.values() 
-                   if datetime.fromisoformat(v["submittedAt"]).date() == (datetime.now() - timedelta(days=29-i)).date())
+        count = sum(1 for v in all_verifications 
+                   if v.get("submittedAt") and datetime.fromisoformat(v["submittedAt"]).date() == (datetime.now() - timedelta(days=29-i)).date())
         volume_data.append({"date": date, "count": count + random.randint(2, 8)})
     
     return jsonify({
@@ -320,13 +552,14 @@ def get_dashboard():
     })
 
 @app.route("/api/verifications", methods=["GET"])
-def get_verifications():
-    return jsonify(list(verifications.values()))
+def get_verifications_route():
+    return jsonify(get_all_verifications())
 
 @app.route("/api/verifications/<verification_id>", methods=["GET"])
-def get_verification(verification_id):
-    if verification_id in verifications:
-        return jsonify(verifications[verification_id])
+def get_verification_route(verification_id):
+    verification = get_verification_by_id(verification_id)
+    if verification:
+        return jsonify(verification)
     return jsonify({"error": "Verification not found"}), 404
 
 @app.route("/api/verifications", methods=["POST"])
@@ -356,8 +589,9 @@ def create_verification():
     risk_score = calculate_risk_score(ocr_result, doc_type)
     risk_level = "low" if risk_score < 30 else ("medium" if risk_score < 70 else "high")
     
-    auto_approve = risk_score < settings["autoApproveThreshold"]
-    auto_reject = settings["autoRejectHighRisk"] and risk_score > settings["highRiskThreshold"]
+    current_settings = get_settings()
+    auto_approve = risk_score < current_settings["autoApproveThreshold"]
+    auto_reject = current_settings["autoRejectHighRisk"] and risk_score > current_settings["highRiskThreshold"]
     
     status = "approved" if auto_approve else ("rejected" if auto_reject else "pending")
     
@@ -408,32 +642,35 @@ def create_verification():
         "chatHistory": []
     }
     
-    verifications[ver_id] = verification
-    chat_histories[ver_id] = []
+    save_verification(verification)
     
     return jsonify(verification), 201
 
 @app.route("/api/verifications/<verification_id>", methods=["PATCH"])
-def update_verification(verification_id):
-    if verification_id not in verifications:
+def update_verification_route(verification_id):
+    verification = get_verification_by_id(verification_id)
+    if not verification:
         return jsonify({"error": "Verification not found"}), 404
     
     data = request.get_json()
     if "status" in data:
-        verifications[verification_id]["status"] = data["status"]
-        verifications[verification_id]["reviewedAt"] = datetime.now().isoformat()
+        verification["status"] = data["status"]
+        verification["reviewedAt"] = datetime.now().isoformat()
+        save_verification(verification)
     
-    return jsonify(verifications[verification_id])
+    return jsonify(verification)
 
 @app.route("/api/verifications/<verification_id>/chat", methods=["GET"])
-def get_chat_history(verification_id):
-    if verification_id not in verifications:
+def get_chat_history_route(verification_id):
+    verification = get_verification_by_id(verification_id)
+    if not verification:
         return jsonify({"error": "Verification not found"}), 404
-    return jsonify(chat_histories.get(verification_id, []))
+    return jsonify(get_chat_history(verification_id))
 
 @app.route("/api/verifications/<verification_id>/chat", methods=["POST"])
-def send_chat_message(verification_id):
-    if verification_id not in verifications:
+def send_chat_message_route(verification_id):
+    verification = get_verification_by_id(verification_id)
+    if not verification:
         return jsonify({"error": "Verification not found"}), 404
     
     data = request.get_json()
@@ -442,8 +679,6 @@ def send_chat_message(verification_id):
     if not content:
         return jsonify({"error": "Message content required"}), 400
     
-    verification = verifications[verification_id]
-    
     user_message = {
         "id": str(uuid.uuid4()),
         "role": "user",
@@ -451,9 +686,9 @@ def send_chat_message(verification_id):
         "timestamp": datetime.now().isoformat()
     }
     
-    if verification_id not in chat_histories:
-        chat_histories[verification_id] = []
-    chat_histories[verification_id].append(user_message)
+    save_chat_message(verification_id, user_message)
+    
+    chat_history = get_chat_history(verification_id)
     
     context = f"""You are an AI assistant helping a compliance analyst review a KYC document verification.
 
@@ -472,10 +707,10 @@ Please provide helpful, concise responses about this document. If asked about ap
 
     try:
         response = client.chat.completions.create(
-            model="gpt-5",  # the newest OpenAI model is "gpt-5" which was released August 7, 2025
+            model="gpt-5",
             messages=[
                 {"role": "system", "content": context},
-                *[{"role": m["role"], "content": m["content"]} for m in chat_histories[verification_id][-10:]]
+                *[{"role": m["role"], "content": m["content"]} for m in chat_history[-10:]]
             ],
             max_completion_tokens=500
         )
@@ -491,28 +726,29 @@ Please provide helpful, concise responses about this document. If asked about ap
         "timestamp": datetime.now().isoformat()
     }
     
-    chat_histories[verification_id].append(assistant_message)
+    save_chat_message(verification_id, assistant_message)
     
     return jsonify(assistant_message)
 
 @app.route("/api/integrations", methods=["GET"])
-def get_integrations():
+def get_integrations_route():
     return jsonify(integrations)
 
 @app.route("/api/patterns", methods=["GET"])
-def get_patterns():
+def get_patterns_route():
     return jsonify(fraud_patterns)
 
 @app.route("/api/settings", methods=["GET"])
-def get_settings():
-    return jsonify(settings)
+def get_settings_route():
+    return jsonify(get_settings())
 
 @app.route("/api/settings", methods=["PUT"])
-def update_settings():
-    global settings
+def update_settings_route():
     data = request.get_json()
-    settings.update(data)
-    return jsonify(settings)
+    current = get_settings()
+    current.update(data)
+    save_settings(current)
+    return jsonify(current)
 
 if __name__ == "__main__":
     port = int(os.environ.get("FLASK_PORT", 5001))

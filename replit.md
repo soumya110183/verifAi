@@ -7,8 +7,8 @@ VerifAI is an intelligent Know Your Customer (KYC) document verification platfor
 - **Frontend**: React 18 with TypeScript, Tailwind CSS, Shadcn UI components
 - **Backend**: Python Flask API with OpenAI integration (via Replit AI Integrations)
 - **Server**: Node.js Express (serves frontend and proxies API requests to Python backend)
-- **Storage**: In-memory storage (MVP)
-- **AI**: OpenAI GPT-5 for document analysis and GenAI assistant
+- **Database**: PostgreSQL for persistent storage
+- **AI**: OpenAI GPT-5 for document analysis, Vision API for OCR, GenAI assistant
 
 ## Project Structure
 ```
