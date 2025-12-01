@@ -33,13 +33,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-black flex items-center justify-center p-6">
       <div className="w-full max-w-5xl flex items-stretch rounded-xl overflow-hidden shadow-2xl">
-        <div className="hidden lg:block lg:w-1/2">
+        <div className="hidden lg:flex lg:w-1/2 bg-[#050d1a] items-center justify-center">
           <img 
             src={verifaiHero} 
             alt="VerifAI - AI-Powered KYC Verification Platform" 
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
           />
         </div>
 
