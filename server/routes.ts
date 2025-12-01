@@ -7,6 +7,11 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 
+const uploadMultiple = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 50 }
+});
+
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:5001";
 const DEMO_USERNAME = process.env.DEMO_USERNAME || "analyst";
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "verifai2024";
@@ -154,6 +159,45 @@ export async function registerRoutes(
       res.json({ user: req.session.user });
     } else {
       res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+
+  app.get("/api/batch-jobs", (req, res) => proxyToPython(req, res));
+  
+  app.get("/api/batch-jobs/stats", (req, res) => proxyToPython(req, res));
+  
+  app.get("/api/batch-jobs/:id", (req, res) => proxyToPython(req, res));
+  
+  app.get("/api/batch-jobs/:id/verifications", (req, res) => proxyToPython(req, res));
+  
+  app.post("/api/batch-jobs", uploadMultiple.array("documents", 50), async (req, res) => {
+    try {
+      const url = `${PYTHON_BACKEND_URL}/api/batch-jobs`;
+      
+      const formData = new FormData();
+      const files = req.files as Express.Multer.File[];
+      
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const blob = new Blob([file.buffer], { type: file.mimetype });
+          formData.append("documents", blob, file.originalname);
+        }
+      }
+      
+      if (req.body.name) {
+        formData.append("name", req.body.name);
+      }
+      
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (error) {
+      console.error("Batch upload error:", error);
+      res.status(502).json({ error: "Backend service unavailable" });
     }
   });
 

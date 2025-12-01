@@ -83,6 +83,23 @@ def init_db():
         )
     """)
     
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS batch_jobs (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            total_documents INTEGER DEFAULT 0,
+            processed_documents INTEGER DEFAULT 0,
+            successful_documents INTEGER DEFAULT 0,
+            failed_documents INTEGER DEFAULT 0,
+            verification_ids JSONB DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            started_at TIMESTAMP,
+            completed_at TIMESTAMP,
+            error_message TEXT
+        )
+    """)
+    
     cur.execute("SELECT COUNT(*) as count FROM settings")
     if cur.fetchone()["count"] == 0:
         cur.execute("""
@@ -453,6 +470,202 @@ def get_audit_log_count(filters=None):
     except Exception as e:
         print(f"Get audit log count error: {e}")
         return 0
+
+def get_batch_job(job_id):
+    """Get a batch job by ID"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM batch_jobs WHERE id = %s", (job_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if row:
+            return {
+                "id": row["id"],
+                "name": row["name"],
+                "status": row["status"],
+                "totalDocuments": row["total_documents"],
+                "processedDocuments": row["processed_documents"],
+                "successfulDocuments": row["successful_documents"],
+                "failedDocuments": row["failed_documents"],
+                "verificationIds": row["verification_ids"] or [],
+                "createdAt": row["created_at"].isoformat() if row["created_at"] else None,
+                "startedAt": row["started_at"].isoformat() if row["started_at"] else None,
+                "completedAt": row["completed_at"].isoformat() if row["completed_at"] else None,
+                "errorMessage": row["error_message"]
+            }
+    except Exception as e:
+        print(f"Get batch job error: {e}")
+    return None
+
+def get_all_batch_jobs():
+    """Get all batch jobs"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM batch_jobs ORDER BY created_at DESC")
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [{
+            "id": row["id"],
+            "name": row["name"],
+            "status": row["status"],
+            "totalDocuments": row["total_documents"],
+            "processedDocuments": row["processed_documents"],
+            "successfulDocuments": row["successful_documents"],
+            "failedDocuments": row["failed_documents"],
+            "verificationIds": row["verification_ids"] or [],
+            "createdAt": row["created_at"].isoformat() if row["created_at"] else None,
+            "startedAt": row["started_at"].isoformat() if row["started_at"] else None,
+            "completedAt": row["completed_at"].isoformat() if row["completed_at"] else None,
+            "errorMessage": row["error_message"]
+        } for row in rows]
+    except Exception as e:
+        print(f"Get batch jobs error: {e}")
+        return []
+
+def create_batch_job(name, total_documents):
+    """Create a new batch job"""
+    try:
+        job_id = str(uuid.uuid4())
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO batch_jobs (id, name, status, total_documents, created_at)
+            VALUES (%s, %s, 'pending', %s, %s)
+        """, (job_id, name, total_documents, datetime.now()))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return job_id
+    except Exception as e:
+        print(f"Create batch job error: {e}")
+        return None
+
+def update_batch_job(job_id, updates):
+    """Update batch job progress"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        set_clauses = []
+        params = []
+        
+        if "status" in updates:
+            set_clauses.append("status = %s")
+            params.append(updates["status"])
+        if "processed_documents" in updates:
+            set_clauses.append("processed_documents = %s")
+            params.append(updates["processed_documents"])
+        if "successful_documents" in updates:
+            set_clauses.append("successful_documents = %s")
+            params.append(updates["successful_documents"])
+        if "failed_documents" in updates:
+            set_clauses.append("failed_documents = %s")
+            params.append(updates["failed_documents"])
+        if "verification_ids" in updates:
+            set_clauses.append("verification_ids = %s")
+            params.append(json.dumps(updates["verification_ids"]))
+        if "started_at" in updates:
+            set_clauses.append("started_at = %s")
+            params.append(updates["started_at"])
+        if "completed_at" in updates:
+            set_clauses.append("completed_at = %s")
+            params.append(updates["completed_at"])
+        if "error_message" in updates:
+            set_clauses.append("error_message = %s")
+            params.append(updates["error_message"])
+        
+        if set_clauses:
+            params.append(job_id)
+            cur.execute(f"UPDATE batch_jobs SET {', '.join(set_clauses)} WHERE id = %s", params)
+            conn.commit()
+        
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Update batch job error: {e}")
+
+def process_single_document_for_batch(file_content, filename, mime_type):
+    """Process a single document as part of a batch job"""
+    try:
+        ver_id = str(uuid.uuid4())
+        doc_type = detect_document_type(filename)
+        
+        file_base64 = base64.b64encode(file_content).decode("utf-8")
+        document_url = f"data:{mime_type};base64,{file_base64}"
+        
+        ocr_result = extract_ocr_with_vision(file_base64, mime_type, doc_type)
+        
+        if ocr_result and "document_analysis" in ocr_result:
+            detected_type = ocr_result["document_analysis"].get("detected_type")
+            if detected_type and detected_type in ["passport", "drivers_license", "national_id"]:
+                doc_type = detected_type
+        
+        risk_score = calculate_risk_score(ocr_result, doc_type)
+        risk_level = "low" if risk_score < 30 else ("medium" if risk_score < 70 else "high")
+        
+        current_settings = get_settings()
+        auto_approve = risk_score < current_settings["autoApproveThreshold"]
+        auto_reject = current_settings["autoRejectHighRisk"] and risk_score > current_settings["highRiskThreshold"]
+        
+        status = "approved" if auto_approve else ("rejected" if auto_reject else "pending")
+        
+        ocr_fields = generate_ocr_fields(doc_type, ocr_result)
+        
+        name_field = next((f for f in ocr_fields if f["fieldName"] == "Full Name"), None)
+        dob_field = next((f for f in ocr_fields if f["fieldName"] == "Date of Birth"), None)
+        doc_num_field = next((f for f in ocr_fields if f["fieldName"] == "Document Number"), None)
+        
+        validation_results = []
+        if name_field:
+            validation_results.append({
+                "fieldName": "Full Name", 
+                "submittedValue": "", 
+                "extractedValue": name_field["value"], 
+                "isMatch": True
+            })
+        if dob_field:
+            validation_results.append({
+                "fieldName": "Date of Birth", 
+                "submittedValue": "", 
+                "extractedValue": dob_field["value"], 
+                "isMatch": True
+            })
+        if doc_num_field:
+            validation_results.append({
+                "fieldName": "Document Number", 
+                "submittedValue": "", 
+                "extractedValue": doc_num_field["value"], 
+                "isMatch": True
+            })
+        
+        customer_name = name_field["value"] if name_field else f"Customer {ver_id[:8]}"
+        
+        verification = {
+            "id": ver_id,
+            "documentType": doc_type,
+            "documentUrl": document_url,
+            "status": status,
+            "riskScore": risk_score,
+            "riskLevel": risk_level,
+            "customerName": customer_name,
+            "submittedAt": datetime.now().isoformat(),
+            "reviewedAt": datetime.now().isoformat() if status in ["approved", "rejected"] else None,
+            "ocrFields": ocr_fields,
+            "riskInsights": generate_risk_insights(risk_score),
+            "validationResults": validation_results,
+            "chatHistory": []
+        }
+        
+        save_verification(verification)
+        
+        return {"success": True, "verification_id": ver_id, "status": status}
+    except Exception as e:
+        print(f"Process document error: {e}")
+        return {"success": False, "error": str(e)}
 
 def generate_sample_data():
     """Generate sample verifications for demo if database is empty"""
@@ -1032,6 +1245,141 @@ def get_audit_stats_route():
     except Exception as e:
         print(f"Audit stats error: {e}")
         return jsonify({"totalLogs": 0, "actionBreakdown": [], "dailyActivity": []})
+
+@app.route("/api/batch-jobs", methods=["GET"])
+def get_batch_jobs_route():
+    """Get all batch jobs"""
+    return jsonify(get_all_batch_jobs())
+
+@app.route("/api/batch-jobs/<job_id>", methods=["GET"])
+def get_batch_job_route(job_id):
+    """Get a specific batch job"""
+    job = get_batch_job(job_id)
+    if job:
+        return jsonify(job)
+    return jsonify({"error": "Batch job not found"}), 404
+
+@app.route("/api/batch-jobs", methods=["POST"])
+def create_batch_job_route():
+    """Create a new batch job and process documents"""
+    if "documents" not in request.files:
+        return jsonify({"error": "No documents provided"}), 400
+    
+    files = request.files.getlist("documents")
+    if len(files) == 0:
+        return jsonify({"error": "No files selected"}), 400
+    
+    if len(files) > 50:
+        return jsonify({"error": "Maximum 50 documents per batch"}), 400
+    
+    batch_name = request.form.get("name", f"Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    job_id = create_batch_job(batch_name, len(files))
+    if not job_id:
+        return jsonify({"error": "Failed to create batch job"}), 500
+    
+    update_batch_job(job_id, {"status": "processing", "started_at": datetime.now()})
+    
+    log_audit_event(
+        action="batch_job_started",
+        entity_type="batch_job",
+        entity_id=job_id,
+        details={"name": batch_name, "documentCount": len(files)},
+        ip_address=request.remote_addr
+    )
+    
+    verification_ids = []
+    successful = 0
+    failed = 0
+    
+    for i, file in enumerate(files):
+        try:
+            file_content = file.read()
+            mime_type = file.content_type or "image/jpeg"
+            result = process_single_document_for_batch(file_content, file.filename, mime_type)
+            
+            if result["success"]:
+                verification_ids.append(result["verification_id"])
+                successful += 1
+            else:
+                failed += 1
+            
+            update_batch_job(job_id, {
+                "processed_documents": i + 1,
+                "successful_documents": successful,
+                "failed_documents": failed,
+                "verification_ids": verification_ids
+            })
+        except Exception as e:
+            print(f"Batch document processing error: {e}")
+            failed += 1
+            update_batch_job(job_id, {
+                "processed_documents": i + 1,
+                "failed_documents": failed
+            })
+    
+    final_status = "completed" if failed == 0 else ("completed_with_errors" if successful > 0 else "failed")
+    update_batch_job(job_id, {
+        "status": final_status,
+        "completed_at": datetime.now()
+    })
+    
+    log_audit_event(
+        action="batch_job_completed",
+        entity_type="batch_job",
+        entity_id=job_id,
+        details={
+            "name": batch_name,
+            "status": final_status,
+            "successful": successful,
+            "failed": failed
+        },
+        ip_address=request.remote_addr
+    )
+    
+    return jsonify(get_batch_job(job_id)), 201
+
+@app.route("/api/batch-jobs/<job_id>/verifications", methods=["GET"])
+def get_batch_verifications_route(job_id):
+    """Get all verifications for a batch job"""
+    job = get_batch_job(job_id)
+    if not job:
+        return jsonify({"error": "Batch job not found"}), 404
+    
+    verifications = []
+    for ver_id in job.get("verificationIds", []):
+        ver = get_verification_by_id(ver_id)
+        if ver:
+            verifications.append(ver)
+    
+    return jsonify(verifications)
+
+@app.route("/api/batch-jobs/stats", methods=["GET"])
+def get_batch_stats_route():
+    """Get batch processing statistics"""
+    try:
+        all_jobs = get_all_batch_jobs()
+        total_jobs = len(all_jobs)
+        completed_jobs = sum(1 for j in all_jobs if j["status"] in ["completed", "completed_with_errors"])
+        total_documents = sum(j["totalDocuments"] for j in all_jobs)
+        successful_documents = sum(j["successfulDocuments"] for j in all_jobs)
+        
+        return jsonify({
+            "totalJobs": total_jobs,
+            "completedJobs": completed_jobs,
+            "totalDocuments": total_documents,
+            "successfulDocuments": successful_documents,
+            "successRate": round((successful_documents / total_documents * 100) if total_documents > 0 else 0, 1)
+        })
+    except Exception as e:
+        print(f"Batch stats error: {e}")
+        return jsonify({
+            "totalJobs": 0,
+            "completedJobs": 0,
+            "totalDocuments": 0,
+            "successfulDocuments": 0,
+            "successRate": 0
+        })
 
 if __name__ == "__main__":
     port = int(os.environ.get("FLASK_PORT", 5001))
