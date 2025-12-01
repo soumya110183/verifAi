@@ -2,9 +2,57 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { spawn, type ChildProcess } from "child_process";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
+
+let pythonProcess: ChildProcess | null = null;
+
+function startPythonBackend() {
+  const pythonPath = path.join(process.cwd(), "python_backend", "app.py");
+  
+  pythonProcess = spawn("python", [pythonPath], {
+    env: { ...process.env, FLASK_PORT: "5001" },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  pythonProcess.stdout?.on("data", (data) => {
+    console.log(`[python] ${data.toString().trim()}`);
+  });
+
+  pythonProcess.stderr?.on("data", (data) => {
+    console.log(`[python] ${data.toString().trim()}`);
+  });
+
+  pythonProcess.on("error", (err) => {
+    console.error(`[python] Failed to start Python backend: ${err.message}`);
+  });
+
+  pythonProcess.on("exit", (code) => {
+    if (code !== null && code !== 0) {
+      console.log(`[python] Backend exited with code ${code}, restarting...`);
+      setTimeout(startPythonBackend, 2000);
+    }
+  });
+
+  console.log("[python] Starting Python backend on port 5001...");
+}
+
+process.on("SIGTERM", () => {
+  if (pythonProcess) {
+    pythonProcess.kill();
+  }
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  if (pythonProcess) {
+    pythonProcess.kill();
+  }
+  process.exit(0);
+});
 
 declare module "http" {
   interface IncomingMessage {
@@ -60,6 +108,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  startPythonBackend();
+  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
