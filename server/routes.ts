@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import multer from "multer";
 
 const upload = multer({ 
@@ -8,6 +8,8 @@ const upload = multer({
 });
 
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:5001";
+const DEMO_USERNAME = process.env.DEMO_USERNAME || "analyst";
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "verifai2024";
 
 async function proxyToPython(req: Request, res: Response, options: {
   method?: string;
@@ -122,6 +124,36 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Audit export error:", error);
       res.status(502).json({ error: "Backend service unavailable" });
+    }
+  });
+
+  app.post("/api/auth/login", (req, res) => {
+    const { username, password } = req.body;
+    
+    if (username === DEMO_USERNAME && password === DEMO_PASSWORD) {
+      req.session.isAuthenticated = true;
+      req.session.user = { username };
+      res.json({ success: true, user: { username } });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        res.status(500).json({ error: "Logout failed" });
+      } else {
+        res.json({ success: true });
+      }
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (req.session.isAuthenticated && req.session.user) {
+      res.json({ user: req.session.user });
+    } else {
+      res.status(401).json({ error: "Not authenticated" });
     }
   });
 

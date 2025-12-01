@@ -4,11 +4,19 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { spawn, type ChildProcess } from "child_process";
 import path from "path";
+import session from "express-session";
 
 const app = express();
 const httpServer = createServer(app);
 
 let pythonProcess: ChildProcess | null = null;
+
+declare module "express-session" {
+  interface SessionData {
+    isAuthenticated?: boolean;
+    user?: { username: string };
+  }
+}
 
 function startPythonBackend() {
   const pythonPath = path.join(process.cwd(), "python_backend", "app.py");
@@ -59,6 +67,19 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "verifai-demo-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+    },
+  })
+);
 
 app.use(
   express.json({

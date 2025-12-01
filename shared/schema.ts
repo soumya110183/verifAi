@@ -1,3 +1,15 @@
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  jsonb,
+  pgTable,
+  timestamp,
+  varchar,
+  serial,
+  text,
+  integer,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 export const DocumentTypeEnum = z.enum(["passport", "drivers_license", "national_id"]);
@@ -117,10 +129,30 @@ export const dashboardStatsSchema = z.object({
 });
 export type DashboardStats = z.infer<typeof dashboardStatsSchema>;
 
-export const users = {
-  id: "",
-  username: "",
-  password: "",
-};
-export type User = typeof users;
-export type InsertUser = Omit<User, "id">;
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  action: varchar("action").notNull(),
+  entityType: varchar("entity_type").notNull(),
+  entityId: varchar("entity_id"),
+  userId: varchar("user_id"),
+  userName: varchar("user_name"),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+export const auditLogSchema = z.object({
+  id: z.number(),
+  action: z.string(),
+  entityType: z.string(),
+  entityId: z.string().nullable(),
+  userId: z.string().nullable(),
+  userName: z.string().nullable(),
+  details: z.any().nullable(),
+  ipAddress: z.string().nullable(),
+  timestamp: z.string(),
+});
+

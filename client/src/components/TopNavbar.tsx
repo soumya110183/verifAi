@@ -1,13 +1,15 @@
 import { Link, useLocation } from "wouter";
-import { Shield, Bell, User } from "lucide-react";
+import { Shield, Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { name: "Dashboard", path: "/" },
@@ -19,6 +21,9 @@ const navItems = [
 
 export function TopNavbar() {
   const [location] = useLocation();
+  const { user, logout, isLoggingOut } = useAuth();
+
+  const initials = user?.username?.slice(0, 2).toUpperCase() || "U";
 
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -63,12 +68,17 @@ export function TopNavbar() {
               <Button variant="ghost" size="icon" className="rounded-full" data-testid="button-user-menu">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                    CA
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium">{user?.username || "User"}</p>
+                <p className="text-xs text-muted-foreground">Compliance Analyst</p>
+              </div>
+              <DropdownMenuSeparator />
               <DropdownMenuItem data-testid="menu-item-profile">
                 <User className="mr-2 h-4 w-4" />
                 Profile
@@ -77,6 +87,16 @@ export function TopNavbar() {
                 <Link href="/settings" className="flex items-center w-full">
                   Settings
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => logout()}
+                disabled={isLoggingOut}
+                className="text-destructive focus:text-destructive"
+                data-testid="button-logout"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {isLoggingOut ? "Signing out..." : "Sign Out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
