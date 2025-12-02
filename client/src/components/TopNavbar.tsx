@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, Bell, User, LogOut } from "lucide-react";
+import { Shield, Bell, User, LogOut, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { name: "Dashboard", path: "/" },
+  { name: "AI Architecture", path: "/ai-architecture", icon: Brain },
   { name: "Audit Trail", path: "/audit" },
   { name: "Integrations", path: "/integrations" },
   { name: "Patterns", path: "/patterns" },
@@ -41,14 +42,16 @@ export function TopNavbar() {
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const isActive = location === item.path;
+              const Icon = (item as any).icon;
               return (
                 <Link key={item.path} href={item.path}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     size="sm"
-                    className={`px-4 ${isActive ? "font-medium" : ""}`}
-                    data-testid={`nav-${item.name.toLowerCase()}`}
+                    className={`px-4 ${isActive ? "font-medium" : ""} ${Icon ? "gap-1.5" : ""}`}
+                    data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
                   >
+                    {Icon && <Icon className="w-4 h-4" />}
                     {item.name}
                   </Button>
                 </Link>

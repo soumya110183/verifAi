@@ -12,6 +12,7 @@ import Integrations from "@/pages/Integrations";
 import Patterns from "@/pages/Patterns";
 import Settings from "@/pages/Settings";
 import AuditTrail from "@/pages/AuditTrail";
+import AIArchitecture from "@/pages/AIArchitecture";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/patterns" component={Patterns} />
       <Route path="/settings" component={Settings} />
       <Route path="/audit" component={AuditTrail} />
+      <Route path="/ai-architecture" component={AIArchitecture} />
       <Route component={NotFound} />
     </Switch>
   );
