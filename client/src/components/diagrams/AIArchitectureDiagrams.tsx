@@ -39,26 +39,26 @@ const staggerContainer = {
 export function SystemArchitectureDiagram() {
   return (
     <motion.div 
-      className="p-6 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+      className="p-6 rounded-xl bg-white border border-gray-200 shadow-sm"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
-      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2">
-        <Layers className="w-6 h-6 text-blue-400" />
+      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2 text-gray-900">
+        <Layers className="w-6 h-6 text-blue-500" />
         System Architecture
       </h3>
       
       <div className="space-y-4">
         <motion.div 
-          className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg p-4 text-center shadow-lg"
+          className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg p-4 text-center shadow-lg text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center justify-center gap-2 mb-2">
             <Globe className="w-5 h-5" />
             <span className="font-semibold">Client Browser</span>
           </div>
-          <span className="text-blue-200 text-sm">React SPA @ :5000</span>
+          <span className="text-blue-100 text-sm">React SPA @ :5000</span>
         </motion.div>
 
         <motion.div className="flex justify-center" variants={fadeInUp}>
@@ -66,7 +66,7 @@ export function SystemArchitectureDiagram() {
         </motion.div>
 
         <motion.div 
-          className="bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg p-4 shadow-lg"
+          className="bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg p-4 shadow-lg text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center justify-center gap-2 mb-3">
@@ -76,15 +76,15 @@ export function SystemArchitectureDiagram() {
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-green-700/50 rounded p-2 text-center text-sm">
               <div className="font-medium">Vite Dev</div>
-              <div className="text-green-200 text-xs">Server</div>
+              <div className="text-green-100 text-xs">Server</div>
             </div>
             <div className="bg-green-700/50 rounded p-2 text-center text-sm">
               <div className="font-medium">Session</div>
-              <div className="text-green-200 text-xs">Auth</div>
+              <div className="text-green-100 text-xs">Auth</div>
             </div>
             <div className="bg-green-700/50 rounded p-2 text-center text-sm">
               <div className="font-medium">API Proxy</div>
-              <div className="text-green-200 text-xs">to Flask</div>
+              <div className="text-green-100 text-xs">to Flask</div>
             </div>
           </div>
         </motion.div>
@@ -94,7 +94,7 @@ export function SystemArchitectureDiagram() {
         </motion.div>
 
         <motion.div 
-          className="bg-gradient-to-r from-purple-600 to-violet-500 rounded-lg p-4 shadow-lg"
+          className="bg-gradient-to-r from-purple-600 to-violet-500 rounded-lg p-4 shadow-lg text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center justify-center gap-2 mb-3">
@@ -104,32 +104,32 @@ export function SystemArchitectureDiagram() {
           <div className="grid grid-cols-3 gap-2 mb-2">
             <div className="bg-purple-700/50 rounded p-2 text-center text-sm">
               <div className="font-medium">Verification</div>
-              <div className="text-purple-200 text-xs">Service</div>
+              <div className="text-purple-100 text-xs">Service</div>
             </div>
             <div className="bg-purple-700/50 rounded p-2 text-center text-sm">
               <div className="font-medium">OpenAI</div>
-              <div className="text-purple-200 text-xs">Integration</div>
+              <div className="text-purple-100 text-xs">Integration</div>
             </div>
             <div className="bg-purple-700/50 rounded p-2 text-center text-sm">
               <div className="font-medium">Risk</div>
-              <div className="text-purple-200 text-xs">Engine</div>
+              <div className="text-purple-100 text-xs">Engine</div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-violet-700/50 rounded p-2 text-center text-sm">
               <Sparkles className="w-4 h-4 mx-auto mb-1" />
               <div className="font-medium">RAG Service</div>
-              <div className="text-violet-200 text-xs">LangChain</div>
+              <div className="text-violet-100 text-xs">LangChain</div>
             </div>
             <div className="bg-violet-700/50 rounded p-2 text-center text-sm">
               <Workflow className="w-4 h-4 mx-auto mb-1" />
               <div className="font-medium">LangGraph</div>
-              <div className="text-violet-200 text-xs">Workflow</div>
+              <div className="text-violet-100 text-xs">Workflow</div>
             </div>
             <div className="bg-violet-700/50 rounded p-2 text-center text-sm">
               <MessageSquare className="w-4 h-4 mx-auto mb-1" />
               <div className="font-medium">Chat</div>
-              <div className="text-violet-200 text-xs">Service</div>
+              <div className="text-violet-100 text-xs">Service</div>
             </div>
           </div>
         </motion.div>
@@ -139,26 +139,26 @@ export function SystemArchitectureDiagram() {
         </motion.div>
 
         <motion.div className="grid grid-cols-2 gap-4" variants={fadeInUp}>
-          <div className="bg-gradient-to-r from-amber-600 to-orange-500 rounded-lg p-4 shadow-lg">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg p-4 shadow-lg text-white">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Database className="w-5 h-5" />
               <span className="font-semibold">PostgreSQL</span>
             </div>
-            <div className="space-y-1 text-sm text-amber-100">
-              <div className="bg-amber-700/50 rounded px-2 py-1 text-center">verifications</div>
-              <div className="bg-amber-700/50 rounded px-2 py-1 text-center">chat_messages</div>
-              <div className="bg-amber-700/50 rounded px-2 py-1 text-center">audit_logs</div>
+            <div className="space-y-1 text-sm text-amber-50">
+              <div className="bg-amber-600/50 rounded px-2 py-1 text-center">verifications</div>
+              <div className="bg-amber-600/50 rounded px-2 py-1 text-center">chat_messages</div>
+              <div className="bg-amber-600/50 rounded px-2 py-1 text-center">audit_logs</div>
             </div>
           </div>
-          <div className="bg-gradient-to-r from-pink-600 to-rose-500 rounded-lg p-4 shadow-lg">
+          <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg p-4 shadow-lg text-white">
             <div className="flex items-center justify-center gap-2 mb-2">
               <HardDrive className="w-5 h-5" />
               <span className="font-semibold">ChromaDB</span>
             </div>
-            <div className="space-y-1 text-sm text-pink-100">
-              <div className="bg-pink-700/50 rounded px-2 py-1 text-center">Document Vectors</div>
-              <div className="bg-pink-700/50 rounded px-2 py-1 text-center">Pattern Vectors</div>
-              <div className="bg-pink-700/50 rounded px-2 py-1 text-center">Embeddings</div>
+            <div className="space-y-1 text-sm text-pink-50">
+              <div className="bg-pink-600/50 rounded px-2 py-1 text-center">Document Vectors</div>
+              <div className="bg-pink-600/50 rounded px-2 py-1 text-center">Pattern Vectors</div>
+              <div className="bg-pink-600/50 rounded px-2 py-1 text-center">Embeddings</div>
             </div>
           </div>
         </motion.div>
@@ -178,27 +178,27 @@ export function LangGraphWorkflowDiagram() {
 
   return (
     <motion.div 
-      className="p-6 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+      className="p-6 rounded-xl bg-white border border-gray-200 shadow-sm"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
-      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2">
-        <Workflow className="w-6 h-6 text-purple-400" />
+      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2 text-gray-900">
+        <Workflow className="w-6 h-6 text-purple-500" />
         LangGraph Verification Workflow
       </h3>
 
       <div className="flex flex-col items-center space-y-3">
         {nodes.map((node, index) => (
           <motion.div key={node.id} variants={fadeInUp} className="w-full max-w-xs">
-            <div className={`bg-gradient-to-r ${node.color} rounded-lg p-4 shadow-lg`}>
+            <div className={`bg-gradient-to-r ${node.color} rounded-lg p-4 shadow-lg text-white`}>
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 rounded-full p-2">
                   <node.icon className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="font-semibold">{node.name}</div>
-                  <div className="text-sm opacity-80">{node.desc}</div>
+                  <div className="text-sm opacity-90">{node.desc}</div>
                 </div>
               </div>
             </div>
@@ -212,16 +212,16 @@ export function LangGraphWorkflowDiagram() {
       </div>
 
       <motion.div 
-        className="mt-6 bg-slate-700/50 rounded-lg p-4"
+        className="mt-6 bg-gray-100 rounded-lg p-4 border border-gray-200"
         variants={fadeInUp}
       >
-        <div className="text-center text-sm text-gray-300">
-          <div className="font-semibold mb-2">Verification State (Accumulated)</div>
+        <div className="text-center text-sm text-gray-700">
+          <div className="font-semibold mb-2 text-gray-900">Verification State (Accumulated)</div>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-slate-600/50 rounded p-2">verification_id</div>
-            <div className="bg-slate-600/50 rounded p-2">fraud_indicators[]</div>
-            <div className="bg-slate-600/50 rounded p-2">similar_documents[]</div>
-            <div className="bg-slate-600/50 rounded p-2">final_recommendation</div>
+            <div className="bg-white rounded p-2 border border-gray-200 text-gray-700">verification_id</div>
+            <div className="bg-white rounded p-2 border border-gray-200 text-gray-700">fraud_indicators[]</div>
+            <div className="bg-white rounded p-2 border border-gray-200 text-gray-700">similar_documents[]</div>
+            <div className="bg-white rounded p-2 border border-gray-200 text-gray-700">final_recommendation</div>
           </div>
         </div>
       </motion.div>
@@ -232,19 +232,19 @@ export function LangGraphWorkflowDiagram() {
 export function RAGPipelineDiagram() {
   return (
     <motion.div 
-      className="p-6 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+      className="p-6 rounded-xl bg-white border border-gray-200 shadow-sm"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
-      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2">
-        <Sparkles className="w-6 h-6 text-yellow-400" />
+      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2 text-gray-900">
+        <Sparkles className="w-6 h-6 text-yellow-500" />
         RAG Pipeline (Retrieval Augmented Generation)
       </h3>
 
       <div className="space-y-4">
         <motion.div 
-          className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-lg p-4"
+          className="bg-gradient-to-r from-blue-600 to-cyan-500 rounded-lg p-4 text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center gap-2 mb-2">
@@ -261,7 +261,7 @@ export function RAGPipelineDiagram() {
         </motion.div>
 
         <motion.div 
-          className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-lg p-4"
+          className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-lg p-4 text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center gap-2 mb-3">
@@ -270,15 +270,15 @@ export function RAGPipelineDiagram() {
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 bg-purple-700/50 rounded p-2">
-              <Zap className="w-4 h-4 text-yellow-400" />
+              <Zap className="w-4 h-4 text-yellow-300" />
               <span>Embed query with text-embedding-3-small</span>
             </div>
             <div className="flex items-center gap-2 bg-purple-700/50 rounded p-2">
-              <Database className="w-4 h-4 text-pink-300" />
+              <Database className="w-4 h-4 text-pink-200" />
               <span>Search ChromaDB for similar verifications</span>
             </div>
             <div className="flex items-center gap-2 bg-purple-700/50 rounded p-2">
-              <Shield className="w-4 h-4 text-red-400" />
+              <Shield className="w-4 h-4 text-red-300" />
               <span>Find matching fraud patterns</span>
             </div>
           </div>
@@ -289,7 +289,7 @@ export function RAGPipelineDiagram() {
         </motion.div>
 
         <motion.div 
-          className="bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg p-4"
+          className="bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg p-4 text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center gap-2 mb-3">
@@ -297,7 +297,7 @@ export function RAGPipelineDiagram() {
             <span className="font-semibold">2. Augmentation Phase</span>
           </div>
           <div className="bg-green-700/50 rounded p-3 text-sm space-y-1">
-            <div className="text-green-200">Context = Current Document +</div>
+            <div className="text-green-100">Context = Current Document +</div>
             <div className="pl-4">+ Similar Past Verifications</div>
             <div className="pl-4">+ Matching Fraud Patterns</div>
             <div className="pl-4">+ Chat History</div>
@@ -309,7 +309,7 @@ export function RAGPipelineDiagram() {
         </motion.div>
 
         <motion.div 
-          className="bg-gradient-to-r from-amber-600 to-orange-500 rounded-lg p-4"
+          className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg p-4 text-white"
           variants={fadeInUp}
         >
           <div className="flex items-center gap-2 mb-3">
@@ -320,7 +320,7 @@ export function RAGPipelineDiagram() {
             <Brain className="w-4 h-4" />
             <span className="text-sm">GPT-4o generates informed response</span>
           </div>
-          <div className="bg-amber-700/50 rounded p-2 text-sm italic">
+          <div className="bg-amber-600/50 rounded p-2 text-sm italic">
             "Based on the analysis and 2 similar past cases, the main risk factors are: 1) Low OCR confidence on DOB field (72%)..."
           </div>
         </motion.div>
@@ -339,13 +339,13 @@ export function LangChainComponentsDiagram() {
 
   return (
     <motion.div 
-      className="p-6 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+      className="p-6 rounded-xl bg-white border border-gray-200 shadow-sm"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
-      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2">
-        <Brain className="w-6 h-6 text-blue-400" />
+      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2 text-gray-900">
+        <Brain className="w-6 h-6 text-blue-500" />
         LangChain Components
       </h3>
 
@@ -353,7 +353,7 @@ export function LangChainComponentsDiagram() {
         {components.map((comp) => (
           <motion.div
             key={comp.name}
-            className={`bg-gradient-to-r ${comp.color} rounded-lg p-4 shadow-lg`}
+            className={`bg-gradient-to-r ${comp.color} rounded-lg p-4 shadow-lg text-white`}
             variants={fadeInUp}
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 300 }}
@@ -364,13 +364,13 @@ export function LangChainComponentsDiagram() {
               </div>
               <span className="font-semibold">{comp.name}</span>
             </div>
-            <div className="text-sm opacity-80 pl-11">{comp.desc}</div>
+            <div className="text-sm opacity-90 pl-11">{comp.desc}</div>
           </motion.div>
         ))}
       </div>
 
       <motion.div 
-        className="mt-6 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-lg p-4"
+        className="mt-6 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg p-4 text-white"
         variants={fadeInUp}
       >
         <div className="text-center">
@@ -400,23 +400,23 @@ export function DataFlowDiagram() {
 
   return (
     <motion.div 
-      className="p-6 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+      className="p-6 rounded-xl bg-white border border-gray-200 shadow-sm"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
     >
-      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2">
-        <Zap className="w-6 h-6 text-yellow-400" />
+      <h3 className="text-xl font-bold mb-6 text-center flex items-center justify-center gap-2 text-gray-900">
+        <Zap className="w-6 h-6 text-yellow-500" />
         Document Processing Flow
       </h3>
 
       <div className="flex flex-wrap justify-center gap-2">
         {steps.map((step, index) => (
           <motion.div key={step.step} variants={fadeInUp} className="flex items-center">
-            <div className={`${step.color} rounded-lg p-3 text-center min-w-[100px]`}>
+            <div className={`${step.color} rounded-lg p-3 text-center min-w-[100px] text-white shadow-md`}>
               <step.icon className="w-6 h-6 mx-auto mb-1" />
               <div className="font-semibold text-sm">{step.title}</div>
-              <div className="text-xs opacity-80">{step.desc}</div>
+              <div className="text-xs opacity-90">{step.desc}</div>
             </div>
             {index < steps.length - 1 && (
               <ArrowRight className="w-5 h-5 text-gray-400 mx-1 flex-shrink-0" />
@@ -429,13 +429,13 @@ export function DataFlowDiagram() {
         className="mt-6 grid grid-cols-2 gap-4"
         variants={fadeInUp}
       >
-        <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-blue-400">GPT-4o</div>
-          <div className="text-sm text-gray-400">LLM Model</div>
+        <div className="bg-gray-100 rounded-lg p-4 text-center border border-gray-200">
+          <div className="text-2xl font-bold text-blue-600">GPT-4o</div>
+          <div className="text-sm text-gray-600">LLM Model</div>
         </div>
-        <div className="bg-slate-700/50 rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-pink-400">1536</div>
-          <div className="text-sm text-gray-400">Embedding Dimensions</div>
+        <div className="bg-gray-100 rounded-lg p-4 text-center border border-gray-200">
+          <div className="text-2xl font-bold text-pink-600">1536</div>
+          <div className="text-sm text-gray-600">Embedding Dimensions</div>
         </div>
       </motion.div>
     </motion.div>
