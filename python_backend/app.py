@@ -18,6 +18,25 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")
 )
 
+try:
+    from rag_service import (
+        rag_enhanced_chat,
+        create_document_embedding,
+        store_fraud_pattern_embeddings,
+        semantic_document_search,
+        find_similar_verifications,
+        find_matching_fraud_patterns,
+        run_verification_workflow,
+        analyze_document_with_rag,
+        get_knowledge_base_stats,
+        init_langchain
+    )
+    RAG_ENABLED = True
+    print("[python] RAG service loaded successfully")
+except Exception as e:
+    RAG_ENABLED = False
+    print(f"[python] RAG service not available: {e}")
+
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db_connection():
@@ -1045,6 +1064,7 @@ def get_chat_history_route(verification_id):
 
 @app.route("/api/verifications/<verification_id>/chat", methods=["POST"])
 def send_chat_message_route(verification_id):
+    """RAG-enhanced chat endpoint using LangChain"""
     verification = get_verification_by_id(verification_id)
     if not verification:
         return jsonify({"error": "Verification not found"}), 404
@@ -1066,6 +1086,29 @@ def send_chat_message_route(verification_id):
     
     chat_history = get_chat_history(verification_id)
     
+    if RAG_ENABLED:
+        try:
+            assistant_content = rag_enhanced_chat(verification, content, chat_history)
+        except Exception as e:
+            print(f"[python] RAG chat error, falling back: {e}")
+            assistant_content = fallback_chat_response(verification, content, chat_history)
+    else:
+        assistant_content = fallback_chat_response(verification, content, chat_history)
+    
+    assistant_message = {
+        "id": str(uuid.uuid4()),
+        "role": "assistant",
+        "content": assistant_content,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    save_chat_message(verification_id, assistant_message)
+    
+    return jsonify(assistant_message)
+
+
+def fallback_chat_response(verification, content, chat_history):
+    """Fallback chat when RAG is not available"""
     context = f"""You are an AI assistant helping a compliance analyst review a KYC document verification.
 
 Document Information:
@@ -1090,21 +1133,9 @@ Please provide helpful, concise responses about this document. If asked about ap
             ],
             max_tokens=500
         )
-        
-        assistant_content = response.choices[0].message.content
+        return response.choices[0].message.content
     except Exception as e:
-        assistant_content = f"I'm currently analyzing this document. Based on the risk score of {verification['riskScore']}, this document is classified as {verification['riskLevel']} risk. The OCR extraction identified {len(verification['ocrFields'])} fields with high confidence. Would you like me to explain any specific aspect of this verification?"
-    
-    assistant_message = {
-        "id": str(uuid.uuid4()),
-        "role": "assistant",
-        "content": assistant_content,
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    save_chat_message(verification_id, assistant_message)
-    
-    return jsonify(assistant_message)
+        return f"I'm currently analyzing this document. Based on the risk score of {verification['riskScore']}, this document is classified as {verification['riskLevel']} risk. The OCR extraction identified {len(verification['ocrFields'])} fields with high confidence. Would you like me to explain any specific aspect of this verification?"
 
 @app.route("/api/integrations", methods=["GET"])
 def get_integrations_route():
@@ -1379,6 +1410,218 @@ def get_batch_stats_route():
             "successfulDocuments": 0,
             "successRate": 0
         })
+
+
+@app.route("/api/rag/status", methods=["GET"])
+def get_rag_status_route():
+    """Get RAG system status and knowledge base statistics"""
+    if not RAG_ENABLED:
+        return jsonify({
+            "enabled": False,
+            "status": "unavailable",
+            "message": "RAG service is not available",
+            "features": {
+                "langchain": False,
+                "langgraph": False,
+                "vectorDb": False,
+                "embeddings": False
+            }
+        })
+    
+    try:
+        kb_stats = get_knowledge_base_stats()
+        return jsonify({
+            "enabled": True,
+            "status": kb_stats.get("status", "unknown"),
+            "knowledgeBase": kb_stats,
+            "features": {
+                "langchain": True,
+                "langgraph": True,
+                "vectorDb": True,
+                "embeddings": True,
+                "ragChat": True,
+                "semanticSearch": True,
+                "fraudPatternMatching": True,
+                "workflowAnalysis": True
+            },
+            "models": {
+                "llm": "gpt-4o",
+                "embeddings": "text-embedding-3-small",
+                "vectorDb": "ChromaDB"
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "enabled": True,
+            "status": "error",
+            "error": str(e)
+        })
+
+
+@app.route("/api/rag/search", methods=["POST"])
+def semantic_search_route():
+    """Semantic search across document knowledge base"""
+    if not RAG_ENABLED:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    data = request.get_json()
+    query = data.get("query", "")
+    limit = data.get("limit", 5)
+    filter_type = data.get("filterType")
+    
+    if not query:
+        return jsonify({"error": "Search query required"}), 400
+    
+    try:
+        results = semantic_document_search(query, k=limit, filter_type=filter_type)
+        
+        log_audit_event(
+            action="semantic_search",
+            entity_type="rag",
+            details={"query": query, "results_count": len(results)},
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify({
+            "query": query,
+            "results": results,
+            "total": len(results)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rag/similar/<verification_id>", methods=["GET"])
+def find_similar_route(verification_id):
+    """Find similar verifications using vector similarity"""
+    if not RAG_ENABLED:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    verification = get_verification_by_id(verification_id)
+    if not verification:
+        return jsonify({"error": "Verification not found"}), 404
+    
+    try:
+        similar_verifications = find_similar_verifications(verification, k=5)
+        matching_patterns = find_matching_fraud_patterns(verification, k=3)
+        
+        return jsonify({
+            "verificationId": verification_id,
+            "similarVerifications": similar_verifications,
+            "matchingFraudPatterns": matching_patterns
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rag/analyze/<verification_id>", methods=["POST"])
+def rag_analyze_route(verification_id):
+    """Run complete RAG analysis on a verification using LangGraph workflow"""
+    if not RAG_ENABLED:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    verification = get_verification_by_id(verification_id)
+    if not verification:
+        return jsonify({"error": "Verification not found"}), 404
+    
+    try:
+        ocr_result = {
+            "extracted_fields": verification.get("ocrFields", []),
+            "document_analysis": {
+                "detected_type": verification.get("documentType"),
+                "quality_score": 80,
+                "is_readable": True,
+                "potential_issues": []
+            }
+        }
+        
+        analysis = analyze_document_with_rag(verification, ocr_result)
+        
+        log_audit_event(
+            action="rag_analysis",
+            entity_type="verification",
+            entity_id=verification_id,
+            details={
+                "recommendation": analysis.get("workflow_analysis", {}).get("final_recommendation", ""),
+                "fraud_indicators_count": len(analysis.get("workflow_analysis", {}).get("fraud_indicators", []))
+            },
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify({
+            "verificationId": verification_id,
+            "analysis": analysis
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rag/workflow/<verification_id>", methods=["POST"])
+def run_workflow_route(verification_id):
+    """Execute LangGraph verification workflow"""
+    if not RAG_ENABLED:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    verification = get_verification_by_id(verification_id)
+    if not verification:
+        return jsonify({"error": "Verification not found"}), 404
+    
+    try:
+        ocr_result = {
+            "extracted_fields": verification.get("ocrFields", []),
+            "document_analysis": {
+                "detected_type": verification.get("documentType"),
+                "quality_score": 80,
+                "is_readable": True,
+                "potential_issues": []
+            }
+        }
+        
+        workflow_result = run_verification_workflow(verification, ocr_result)
+        
+        return jsonify({
+            "verificationId": verification_id,
+            "workflowResult": workflow_result
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/rag/embed", methods=["POST"])
+def embed_documents_route():
+    """Manually trigger document embedding for existing verifications"""
+    if not RAG_ENABLED:
+        return jsonify({"error": "RAG service not available"}), 503
+    
+    try:
+        all_verifications = get_all_verifications()
+        embedded_count = 0
+        
+        for verification in all_verifications:
+            result = create_document_embedding(verification)
+            if result:
+                embedded_count += 1
+        
+        pattern_count = store_fraud_pattern_embeddings(fraud_patterns)
+        
+        log_audit_event(
+            action="bulk_embedding",
+            entity_type="rag",
+            details={
+                "verifications_embedded": embedded_count,
+                "patterns_embedded": pattern_count
+            },
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify({
+            "success": True,
+            "verificationsEmbedded": embedded_count,
+            "patternsEmbedded": pattern_count
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("FLASK_PORT", 5001))
