@@ -1,10 +1,65 @@
 import { useQuery } from "@tanstack/react-query";
-import { Shield, Eye, FileWarning, Scan, Type, Layers, Binary, AlertTriangle } from "lucide-react";
+import { 
+  Shield, 
+  Eye, 
+  Scan, 
+  Type, 
+  Layers, 
+  Binary, 
+  AlertTriangle,
+  ImageMinus,
+  FileCode,
+  ScanText,
+  ShieldOff,
+  CalendarX,
+  LucideIcon
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FraudPattern } from "@shared/schema";
+
+const patternIconMap: Record<string, { icon: LucideIcon; color: string; bgColor: string }> = {
+  "Font Substitution": { 
+    icon: Type, 
+    color: "text-blue-600", 
+    bgColor: "from-blue-500 to-indigo-500" 
+  },
+  "Photo Manipulation": { 
+    icon: ImageMinus, 
+    color: "text-purple-600", 
+    bgColor: "from-purple-500 to-pink-500" 
+  },
+  "Metadata Tampering": { 
+    icon: FileCode, 
+    color: "text-amber-600", 
+    bgColor: "from-amber-500 to-orange-500" 
+  },
+  "MRZ Inconsistency": { 
+    icon: ScanText, 
+    color: "text-cyan-600", 
+    bgColor: "from-cyan-500 to-blue-500" 
+  },
+  "Security Feature Absence": { 
+    icon: ShieldOff, 
+    color: "text-red-600", 
+    bgColor: "from-red-500 to-rose-500" 
+  },
+  "Date Format Anomaly": { 
+    icon: CalendarX, 
+    color: "text-green-600", 
+    bgColor: "from-green-500 to-emerald-500" 
+  },
+};
+
+function getPatternIcon(patternName: string): { icon: LucideIcon; color: string; bgColor: string } {
+  return patternIconMap[patternName] || { 
+    icon: AlertTriangle, 
+    color: "text-gray-600", 
+    bgColor: "from-gray-500 to-slate-500" 
+  };
+}
 
 const patternCategories = [
   { id: "all", label: "All Patterns" },
@@ -41,13 +96,17 @@ const detectionTechniques = [
 ];
 
 function PatternCard({ pattern }: { pattern: FraudPattern }) {
+  const { icon: PatternIcon, bgColor } = getPatternIcon(pattern.name);
+  
   return (
     <Card className="hover-elevate overflow-hidden">
       <CardContent className="p-0">
-        <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center relative">
-          <FileWarning className="h-16 w-16 text-muted-foreground/30" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-          <Badge className="absolute bottom-3 left-3 bg-primary">
+        <div className={`aspect-video bg-gradient-to-br ${bgColor} flex items-center justify-center relative`}>
+          <div className="bg-white/20 rounded-full p-6">
+            <PatternIcon className="h-12 w-12 text-white" />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <Badge className="absolute bottom-3 left-3 bg-white text-gray-900 hover:bg-white">
             {pattern.confidenceScore}% Detection Rate
           </Badge>
         </div>
