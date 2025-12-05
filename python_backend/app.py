@@ -685,57 +685,6 @@ def process_single_document_for_batch(file_content, filename, mime_type):
         print(f"Process document error: {e}")
         return {"success": False, "error": str(e)}
 
-def generate_sample_data():
-    """Generate sample verifications for demo if database is empty"""
-    try:
-        existing = get_all_verifications()
-        if len(existing) > 0:
-            return
-        
-        sample_names = ["John Smith", "Maria Garcia", "James Wilson", "Sarah Johnson", "Michael Brown"]
-        doc_types = ["passport", "drivers_license", "national_id"]
-        
-        for i in range(10):
-            ver_id = str(uuid.uuid4())
-            risk_score = random.randint(5, 85)
-            risk_level = "low" if risk_score < 30 else ("medium" if risk_score < 70 else "high")
-            status = "approved" if risk_score < 30 else ("pending" if risk_score < 70 else random.choice(["in_review", "rejected"]))
-            customer_name = random.choice(sample_names)
-            
-            verification = {
-                "id": ver_id,
-                "documentType": random.choice(doc_types),
-                "documentUrl": "",
-                "status": status,
-                "riskScore": risk_score,
-                "riskLevel": risk_level,
-                "customerName": customer_name,
-                "submittedAt": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat(),
-                "reviewedAt": datetime.now().isoformat() if status in ["approved", "rejected"] else None,
-                "ocrFields": [
-                    {"fieldName": "Full Name", "value": customer_name, "confidence": random.randint(85, 99)},
-                    {"fieldName": "Document Number", "value": f"DOC{random.randint(100000, 999999)}", "confidence": random.randint(90, 99)},
-                    {"fieldName": "Date of Birth", "value": f"{random.randint(1960, 2000)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}", "confidence": random.randint(88, 99)},
-                    {"fieldName": "Expiry Date", "value": f"{random.randint(2025, 2030)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}", "confidence": random.randint(85, 99)},
-                ],
-                "riskInsights": [
-                    {"category": "Document Quality", "description": "Image clarity is good", "severity": "low"},
-                    {"category": "Data Consistency", "description": "All fields appear consistent", "severity": "low"},
-                ] if risk_score < 50 else [
-                    {"category": "Security Features", "description": "Some security elements could not be verified", "severity": "medium"},
-                    {"category": "Image Analysis", "description": "Potential editing detected in photo area", "severity": "high" if risk_score > 70 else "medium"},
-                ],
-                "validationResults": [
-                    {"fieldName": "Full Name", "submittedValue": customer_name, "extractedValue": customer_name, "isMatch": True},
-                    {"fieldName": "Date of Birth", "submittedValue": "1985-03-15", "extractedValue": "1985-03-15", "isMatch": True},
-                ]
-            }
-            save_verification(verification)
-        print("[python] Sample data generated")
-    except Exception as e:
-        print(f"[python] Sample data generation error: {e}")
-
-generate_sample_data()
 
 def detect_document_type(filename):
     """Simple document type detection based on filename or content"""
@@ -888,6 +837,7 @@ def get_dashboard_route():
     all_verifications = get_all_verifications()
     total = len(all_verifications)
     approved = sum(1 for v in all_verifications if v["status"] == "approved")
+    rejected = sum(1 for v in all_verifications if v["status"] == "rejected")
     pending = sum(1 for v in all_verifications if v["status"] in ["pending", "in_review"])
     high_risk = sum(1 for v in all_verifications if v["riskLevel"] == "high")
     
@@ -898,12 +848,15 @@ def get_dashboard_route():
     volume_data = []
     for i in range(30):
         date = (datetime.now() - timedelta(days=29-i)).strftime("%b %d")
+        target_date = (datetime.now() - timedelta(days=29-i)).date()
         count = sum(1 for v in all_verifications 
-                   if v.get("submittedAt") and datetime.fromisoformat(v["submittedAt"]).date() == (datetime.now() - timedelta(days=29-i)).date())
-        volume_data.append({"date": date, "count": count + random.randint(2, 8)})
+                   if v.get("submittedAt") and datetime.fromisoformat(v["submittedAt"]).date() == target_date)
+        volume_data.append({"date": date, "count": count})
     
     return jsonify({
         "totalVerifications": total,
+        "approvedCount": approved,
+        "rejectedCount": rejected,
         "autoApprovalRate": auto_approval_rate,
         "pendingReview": pending,
         "highRiskFlags": high_risk,

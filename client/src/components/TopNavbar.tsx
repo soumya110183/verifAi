@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Shield, Bell, User, LogOut, Brain } from "lucide-react";
+import { Shield, Bell, User, LogOut, Brain, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 const navItems = [
   { name: "Dashboard", path: "/" },
   { name: "AI Architecture", path: "/ai-architecture", icon: Brain },
+  { name: "Technical Details", path: "/technical-details", icon: Code2 },
   { name: "Audit Trail", path: "/audit" },
   { name: "Integrations", path: "/integrations" },
   { name: "Patterns", path: "/patterns" },

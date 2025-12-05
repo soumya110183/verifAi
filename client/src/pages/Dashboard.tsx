@@ -129,16 +129,12 @@ export default function Dashboard() {
           title="Total Verifications"
           value={stats?.totalVerifications ?? 0}
           icon={FileCheck}
-          trend="+12%"
-          trendDirection="up"
           loading={isLoading}
         />
         <MetricCard
           title="Auto-Approval Rate"
           value={`${stats?.autoApprovalRate ?? 0}%`}
           icon={TrendingUp}
-          trend="+3%"
-          trendDirection="up"
           loading={isLoading}
         />
         <MetricCard
@@ -151,8 +147,6 @@ export default function Dashboard() {
           title="High Risk Flags"
           value={stats?.highRiskFlags ?? 0}
           icon={AlertTriangle}
-          trend="-8%"
-          trendDirection="down"
           loading={isLoading}
         />
       </div>
