@@ -21,33 +21,45 @@ async function proxyToPython(req: Request, res: Response, options: {
   body?: any;
   formData?: FormData;
 } = {}) {
-  try {
-    const url = `${PYTHON_BACKEND_URL}${req.path}`;
-    const method = options.method || req.method;
-    
-    const fetchOptions: RequestInit = {
-      method,
-      headers: {} as Record<string, string>,
-    };
-    
-    if (options.formData) {
-      fetchOptions.body = options.formData;
-    } else if (options.body) {
-      (fetchOptions.headers as Record<string, string>)["Content-Type"] = "application/json";
-      fetchOptions.body = JSON.stringify(options.body);
-    } else if (req.body && Object.keys(req.body).length > 0) {
-      (fetchOptions.headers as Record<string, string>)["Content-Type"] = "application/json";
-      fetchOptions.body = JSON.stringify(req.body);
+  const maxRetries = 2;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const url = `${PYTHON_BACKEND_URL}${req.path}`;
+      const method = options.method || req.method;
+      
+      const fetchOptions: RequestInit = {
+        method,
+        headers: {} as Record<string, string>,
+      };
+      
+      if (options.formData) {
+        fetchOptions.body = options.formData;
+      } else if (options.body) {
+        (fetchOptions.headers as Record<string, string>)["Content-Type"] = "application/json";
+        fetchOptions.body = JSON.stringify(options.body);
+      } else if (req.body && Object.keys(req.body).length > 0) {
+        (fetchOptions.headers as Record<string, string>)["Content-Type"] = "application/json";
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+      
+      const response = await fetch(url, fetchOptions);
+      const data = await response.json();
+      
+      res.status(response.status).json(data);
+      return;
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`Proxy error (attempt ${attempt + 1}/${maxRetries}):`, error);
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
-    
-    const response = await fetch(url, fetchOptions);
-    const data = await response.json();
-    
-    res.status(response.status).json(data);
-  } catch (error) {
-    console.error("Proxy error:", error);
-    res.status(502).json({ error: "Backend service unavailable" });
   }
+  
+  console.error("Proxy failed after retries:", lastError);
+  res.status(502).json({ error: "Backend service unavailable. Please refresh and try again." });
 }
 
 export async function registerRoutes(
@@ -64,26 +76,38 @@ export async function registerRoutes(
   app.get("/api/verifications/:id", (req, res) => proxyToPython(req, res));
   
   app.post("/api/verifications", upload.single("document"), async (req, res) => {
-    try {
-      const url = `${PYTHON_BACKEND_URL}/api/verifications`;
-      
-      const formData = new FormData();
-      if (req.file) {
-        const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
-        formData.append("document", blob, req.file.originalname);
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const url = `${PYTHON_BACKEND_URL}/api/verifications`;
+        
+        const formData = new FormData();
+        if (req.file) {
+          const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+          formData.append("document", blob, req.file.originalname);
+        }
+        
+        const response = await fetch(url, {
+          method: "POST",
+          body: formData,
+        });
+        
+        const data = await response.json();
+        res.status(response.status).json(data);
+        return;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Upload error (attempt ${attempt + 1}/${maxRetries}):`, error);
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
-      
-      const response = await fetch(url, {
-        method: "POST",
-        body: formData,
-      });
-      
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (error) {
-      console.error("Upload error:", error);
-      res.status(502).json({ error: "Backend service unavailable" });
     }
+    
+    console.error("Upload failed after retries:", lastError);
+    res.status(502).json({ error: "Backend service unavailable. Please try again in a moment." });
   });
   
   app.patch("/api/verifications/:id", (req, res) => proxyToPython(req, res));
