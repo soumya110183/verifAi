@@ -18,12 +18,34 @@ declare module "express-session" {
   }
 }
 
+async function waitForPythonBackend(maxAttempts = 30): Promise<boolean> {
+  const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:5001";
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await fetch(`${PYTHON_BACKEND_URL}/api/health`);
+      if (response.ok) {
+        console.log("[python] Backend is ready!");
+        return true;
+      }
+    } catch (e) {
+      // Backend not ready yet
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  console.error("[python] Backend failed to start within timeout");
+  return false;
+}
+
 function startPythonBackend() {
   const pythonPath = path.join(process.cwd(), "python_backend", "app.py");
+  
+  console.log(`[python] Starting Python backend from: ${pythonPath}`);
   
   pythonProcess = spawn("python", [pythonPath], {
     env: { ...process.env, FLASK_PORT: "5001" },
     stdio: ["pipe", "pipe", "pipe"],
+    cwd: process.cwd(),
   });
 
   pythonProcess.stdout?.on("data", (data) => {
@@ -130,6 +152,15 @@ app.use((req, res, next) => {
 
 (async () => {
   startPythonBackend();
+  
+  // Wait for Python backend to be ready in production
+  if (process.env.NODE_ENV === "production") {
+    console.log("[python] Waiting for backend to be ready...");
+    await waitForPythonBackend(30);
+  } else {
+    // In development, give it a few seconds
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
   
   await registerRoutes(httpServer, app);
 
