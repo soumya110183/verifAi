@@ -1,73 +1,77 @@
 # VerifAI - AI-Powered KYC Document Verification Platform
 
 ## Overview
-VerifAI is an intelligent Know Your Customer (KYC) document verification platform that leverages AI technologies to automate identity verification, detect fraud, and assist compliance teams with real-time insights.
 
-## Tech Stack
-- **Frontend**: React 18 with TypeScript, Tailwind CSS, Shadcn UI components
-- **Backend**: Python Flask API with OpenAI integration
-- **Server**: Node.js Express (serves frontend and proxies API requests to Python backend)
-- **Database**: PostgreSQL for persistent storage
-- **AI**: OpenAI GPT-4o for document analysis and Vision API for OCR
+VerifAI is an enterprise-grade Know Your Customer (KYC) document verification platform that combines OCR capabilities with advanced AI technologies. The platform leverages LangChain for AI orchestration, LangGraph for multi-step verification workflows, RAG (Retrieval Augmented Generation) for context-aware AI assistance, and ChromaDB for vector embeddings and semantic search.
 
-## Project Structure
-```
-├── client/                    # React frontend
-│   ├── src/
-│   │   ├── components/        # Reusable UI components
-│   │   │   ├── TopNavbar.tsx  # Top navigation bar
-│   │   │   ├── GenAIAssistant.tsx  # AI chat component
-│   │   │   └── ui/            # Shadcn UI components
-│   │   ├── pages/             # Page components
-│   │   │   ├── Dashboard.tsx  # Main dashboard with KPIs
-│   │   │   ├── Upload.tsx     # Document upload interface
-│   │   │   ├── VerificationDetail.tsx  # Verification review page
-│   │   │   ├── Integrations.tsx  # External data sources
-│   │   │   ├── Patterns.tsx   # Fraud detection patterns
-│   │   │   └── Settings.tsx   # Configuration settings
-│   │   ├── hooks/             # Custom React hooks
-│   │   ├── lib/               # Utility functions
-│   │   └── App.tsx            # Main app with routing
-├── server/                    # Node.js Express server
-│   ├── routes.ts              # API route proxying to Python
-│   ├── storage.ts             # Storage interface
-│   └── index.ts               # Server entry point
-├── python_backend/            # Python Flask API
-│   └── app.py                 # Flask application with AI logic
-├── shared/                    # Shared TypeScript types
-│   └── schema.ts              # Data models and Zod schemas
-└── design_guidelines.md       # UI/UX design guidelines
-```
+The core purpose is to automate identity document verification (passports, driver's licenses, national IDs), detect fraud patterns, calculate risk scores, and provide AI-powered assistance to compliance analysts.
 
-## Key Features
-1. **Dashboard**: Real-time KPIs, verification volume chart, recent verifications feed
-2. **Document Upload**: Drag-and-drop interface supporting JPG, PNG, PDF
-3. **Verification Detail**: Document viewer with OCR data, risk scoring, approve/reject workflow
-4. **GenAI Assistant**: AI-powered chat for document analysis
-5. **Integrations**: Mock connections to DMV, Passport Authority, SSA
-6. **Patterns Library**: Fraud detection techniques
-7. **Settings**: Risk thresholds, automation rules
-8. **Audit Trail**: Complete activity logging with export
+## User Preferences
 
-## Running the Application
-The application requires two servers:
-1. **Python Backend** (port 5001): `python python_backend/app.py`
-2. **Node.js Server** (port 5000): `npm run dev`
+Preferred communication style: Simple, everyday language.
 
-## Environment Variables
-- `OPENAI_API_KEY`: Your OpenAI API key for AI features
-- `DATABASE_URL`: PostgreSQL connection string
+## System Architecture
 
-## API Endpoints
-- `GET /api/dashboard` - Dashboard statistics
-- `GET /api/verifications` - List all verifications
-- `POST /api/verifications` - Create new verification
-- `GET /api/verifications/:id` - Get verification details
-- `PATCH /api/verifications/:id` - Update verification status
-- `POST /api/verifications/:id/chat` - Send chat message
-- `GET /api/batch-jobs` - List batch jobs
-- `POST /api/batch-jobs` - Create batch job with multiple documents
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter (lightweight router)
+- **State Management**: TanStack Query for server state, React hooks for local state
+- **UI Components**: Shadcn UI built on Radix UI primitives
+- **Styling**: Tailwind CSS with custom design tokens following Material Design 3 principles
+- **Build Tool**: Vite with path aliases (@/, @shared/, @assets/)
 
-## Login Credentials
-- Username: analyst
-- Password: analyst
+### Backend Architecture
+- **Dual Backend Design**: Node.js Express server acts as a proxy to a Python Flask backend
+- **Python Backend**: Handles all AI/ML operations including OCR, RAG, LangGraph workflows, and vector embeddings
+- **Express Server**: Manages static file serving, session authentication, and proxies API requests to Python
+- **Process Management**: Express spawns and monitors the Python backend process
+
+### Data Storage
+- **Database**: PostgreSQL with Drizzle ORM
+- **Schema Location**: `shared/schema.ts` contains all table definitions and Zod validation schemas
+- **Vector Store**: ChromaDB for document embeddings and semantic search
+- **Session Storage**: Express sessions with memory store
+
+### Authentication
+- **Method**: Session-based authentication with username/password
+- **Demo Credentials**: analyst/analyst for development
+- **Session Management**: Express-session middleware
+
+### AI/ML Pipeline
+- **OCR**: OpenAI Vision API (GPT-4o) for document text extraction
+- **LLM**: OpenAI GPT-4o for document analysis and chat
+- **Embeddings**: OpenAI text-embedding-3-small for vector representations
+- **Workflow Orchestration**: LangGraph state machine for multi-step verification
+- **RAG**: LangChain with ChromaDB for context-aware AI responses
+
+### Key Design Patterns
+- **API Proxy Pattern**: All `/api/*` routes proxy through Express to Python backend
+- **Shared Types**: TypeScript types in `shared/schema.ts` ensure frontend-backend type safety
+- **Feature-based Pages**: Each major feature (Dashboard, Upload, VerificationDetail, etc.) has its own page component
+
+## External Dependencies
+
+### AI/ML Services
+- **OpenAI API**: GPT-4o for document analysis, Vision API for OCR, text-embedding-3-small for embeddings
+- **ChromaDB**: Local vector database for document embeddings and similarity search
+
+### Database
+- **PostgreSQL**: Primary data store via Neon serverless driver (@neondatabase/serverless)
+- **Drizzle ORM**: Type-safe database queries and migrations
+
+### Frontend Libraries
+- **Radix UI**: Accessible component primitives for all UI elements
+- **Framer Motion**: Page transitions and animations
+- **Recharts**: Dashboard analytics charts
+- **React Hook Form + Zod**: Form handling and validation
+
+### Backend Services
+- **Flask**: Python web framework for AI endpoints
+- **LangChain**: AI orchestration and RAG pipeline
+- **LangGraph**: Stateful workflow management for verification steps
+- **psycopg2**: Python PostgreSQL adapter
+
+### Development Tools
+- **Vite**: Frontend build and dev server with HMR
+- **tsx**: TypeScript execution for Node.js
+- **drizzle-kit**: Database migration tooling
