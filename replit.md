@@ -2,9 +2,9 @@
 
 ## Overview
 
-VerifAI is an enterprise-grade Know Your Customer (KYC) document verification platform that combines OCR capabilities with advanced AI technologies. The platform leverages LangChain for AI orchestration, LangGraph for multi-step verification workflows, RAG (Retrieval Augmented Generation) for context-aware AI assistance, and ChromaDB for vector embeddings and semantic search.
+VerifAI is an enterprise-grade Know Your Customer (KYC) document verification platform that combines OCR capabilities with advanced AI technologies. The platform uses LangChain for AI orchestration, LangGraph for multi-step verification workflows, RAG (Retrieval Augmented Generation) with ChromaDB for semantic document search, and OpenAI GPT-4o for document analysis and fraud detection.
 
-The core purpose is to automate identity document verification (passports, driver's licenses, national IDs), detect fraud patterns, calculate risk scores, and provide AI-powered assistance to compliance analysts.
+The application provides automated identity verification for passports, driver's licenses, and national IDs with real-time risk scoring, fraud pattern matching, and an AI-powered GenAI assistant for compliance analysts.
 
 ## User Preferences
 
@@ -13,65 +13,68 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Routing**: Wouter (lightweight router)
-- **State Management**: TanStack Query for server state, React hooks for local state
-- **UI Components**: Shadcn UI built on Radix UI primitives
-- **Styling**: Tailwind CSS with custom design tokens following Material Design 3 principles
-- **Build Tool**: Vite with path aliases (@/, @shared/, @assets/)
+- **Framework**: React 18 with TypeScript and Vite as the build tool
+- **Styling**: Tailwind CSS with a custom design system following Material Design 3 principles
+- **Component Library**: Shadcn UI (Radix primitives) with custom theming
+- **State Management**: TanStack Query for server state and data fetching
+- **Routing**: Wouter (lightweight client-side routing)
+- **Animations**: Framer Motion for UI transitions
+
+The frontend follows a page-based architecture with shared components. Key pages include Dashboard, Upload, VerificationDetail, Settings, and an AI Architecture documentation page.
 
 ### Backend Architecture
-- **Dual Backend Design**: Node.js Express server acts as a proxy to a Python Flask backend
-- **Python Backend**: Handles all AI/ML operations including OCR, RAG, LangGraph workflows, and vector embeddings
-- **Express Server**: Manages static file serving, session authentication, and proxies API requests to Python
-- **Process Management**: Express spawns and monitors the Python backend process
+- **Primary Backend**: Python Flask server handling AI/ML operations, OCR processing, and database operations
+- **Proxy Layer**: Node.js Express server that proxies requests to the Python backend and serves static files
+- **API Pattern**: RESTful endpoints with JSON responses
 
-### Data Storage
-- **Database**: PostgreSQL with Drizzle ORM
-- **Schema Location**: `shared/schema.ts` contains all table definitions and Zod validation schemas
-- **Vector Store**: ChromaDB for document embeddings and semantic search
-- **Session Storage**: Express sessions with memory store
+The Express server spawns and manages the Python Flask process, waiting for it to be ready before accepting requests. All `/api/*` routes are proxied to the Python backend.
 
-### Authentication
-- **Method**: Session-based authentication with username/password
-- **Demo Credentials**: analyst/analyst for development
-- **Session Management**: Express-session middleware
+### Database Layer
+- **Database**: PostgreSQL (configured via Drizzle ORM)
+- **ORM**: Drizzle ORM with Zod for schema validation
+- **Schema Location**: `shared/schema.ts` contains all database models
+
+Key entities include Verifications (document submissions with OCR data, risk scores, and status), Settings, Integrations, FraudPatterns, and ChatMessages for the GenAI assistant.
 
 ### AI/ML Pipeline
-- **OCR**: OpenAI Vision API (GPT-4o) for document text extraction
+- **LangChain**: Orchestrates AI components and chains
+- **LangGraph**: Manages multi-step verification workflows with state machines
+- **Vector Store**: ChromaDB for document embeddings and semantic search
+- **Embeddings**: OpenAI text-embedding-3-small model
 - **LLM**: OpenAI GPT-4o for document analysis and chat
-- **Embeddings**: OpenAI text-embedding-3-small for vector representations
-- **Workflow Orchestration**: LangGraph state machine for multi-step verification
-- **RAG**: LangChain with ChromaDB for context-aware AI responses
+- **OCR**: OpenAI Vision API for text extraction from documents
 
-### Key Design Patterns
-- **API Proxy Pattern**: All `/api/*` routes proxy through Express to Python backend
-- **Shared Types**: TypeScript types in `shared/schema.ts` ensure frontend-backend type safety
-- **Feature-based Pages**: Each major feature (Dashboard, Upload, VerificationDetail, etc.) has its own page component
+The RAG service (`python_backend/rag_service.py`) provides document embedding creation, semantic search, fraud pattern matching, and context-aware chat responses.
+
+### Authentication
+- Simple session-based authentication using express-session
+- Demo credentials hardcoded for development (analyst/analyst)
+- Session data stored in memory (MemoryStore)
 
 ## External Dependencies
 
 ### AI/ML Services
 - **OpenAI API**: GPT-4o for document analysis, Vision API for OCR, text-embedding-3-small for embeddings
-- **ChromaDB**: Local vector database for document embeddings and similarity search
+- **ChromaDB**: Local vector database for document embeddings (initialized in RAG service)
 
 ### Database
-- **PostgreSQL**: Primary data store via Neon serverless driver (@neondatabase/serverless)
-- **Drizzle ORM**: Type-safe database queries and migrations
+- **PostgreSQL**: Primary database accessed via `DATABASE_URL` environment variable
+- **Neon Database**: Uses `@neondatabase/serverless` driver for PostgreSQL connections
 
-### Frontend Libraries
-- **Radix UI**: Accessible component primitives for all UI elements
-- **Framer Motion**: Page transitions and animations
-- **Recharts**: Dashboard analytics charts
-- **React Hook Form + Zod**: Form handling and validation
+### Required Environment Variables
+- `DATABASE_URL`: PostgreSQL connection string
+- `OPENAI_API_KEY`: OpenAI API key for all AI features
+- `PYTHON_BACKEND_URL`: Python Flask backend URL (defaults to `http://127.0.0.1:5001`)
 
-### Backend Services
-- **Flask**: Python web framework for AI endpoints
-- **LangChain**: AI orchestration and RAG pipeline
-- **LangGraph**: Stateful workflow management for verification steps
-- **psycopg2**: Python PostgreSQL adapter
+### Key NPM Dependencies
+- `@tanstack/react-query`: Data fetching and caching
+- `drizzle-orm` / `drizzle-kit`: Database ORM and migrations
+- `express` / `express-session`: HTTP server and sessions
+- `multer`: File upload handling
 
-### Development Tools
-- **Vite**: Frontend build and dev server with HMR
-- **tsx**: TypeScript execution for Node.js
-- **drizzle-kit**: Database migration tooling
+### Key Python Dependencies
+- `flask` / `flask-cors`: Web framework
+- `openai`: OpenAI API client
+- `langchain-openai` / `langchain-core` / `langchain-chroma`: LangChain ecosystem
+- `langgraph`: Workflow orchestration
+- `psycopg2`: PostgreSQL driver
