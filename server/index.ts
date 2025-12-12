@@ -42,7 +42,8 @@ function startPythonBackend() {
   
   console.log(`[python] Starting Python backend from: ${pythonPath}`);
   
-  pythonProcess = spawn("python", [pythonPath], {
+ pythonProcess = spawn("py", [pythonPath], {
+
     env: { ...process.env, FLASK_PORT: "5001" },
     stdio: ["pipe", "pipe", "pipe"],
     cwd: process.cwd(),
@@ -190,7 +191,7 @@ app.use((req, res, next) => {
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
+     host: "127.0.0.1",
       reusePort: true,
     },
     () => {

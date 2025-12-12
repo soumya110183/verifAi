@@ -10,13 +10,24 @@ from io import BytesIO
 import random
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+print("DATABASE_URL from env:", DATABASE_URL)
+
+
 
 app = Flask(__name__)
 CORS(app, origins="*")
 
 client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY")
+    api_key="sk-1234567890abcdef"
 )
+
 
 try:
     from rag_service import (
@@ -40,9 +51,13 @@ except Exception as e:
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db_connection():
-    """Get a database connection"""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    conn = psycopg2.connect(
+        DATABASE_URL,
+        cursor_factory=RealDictCursor,
+        sslmode="require"
+    )
     return conn
+
 
 def init_db():
     """Initialize database tables"""
